@@ -61,24 +61,24 @@ const setDeviceInfo = (encryptedDeviceId, signature) => {
             payload,
             { withCredentials: true }
         ).then((res) => {
-            if (res.data.encryptedDeviceId && res.data.signature) {
-                setDeviceInfo(res.data.encryptedDeviceId, res.data.signature);
-            }
-            if (res.data.skipOtp) {
-                toast.success("Login Success!");
-                setStep(1); // Reset về bước 1
-                navigate("/");
-                window.location.reload(true);
-            } else {
-                toast.success("OTP sent to your email!");
-                setStep(2); // Sang bước nhập OTP
-                setOtpTimer(60); // Reset timer
-            }
-        })
-        .catch((err) => {
-            toast.error(err.response?.data?.message || "Login failed");
-        });
-};
+    if (res.data.encryptedDeviceId && res.data.signature) {
+        setDeviceInfo(res.data.encryptedDeviceId, res.data.signature);
+        if (res.data.skipOtp) {
+            toast.success("Login Success!");
+            setStep(1); // Reset về bước 1
+            //navigate("/");
+            window.location.reload(true);
+        } else {
+            toast.success("OTP sent to your email!");
+            setStep(2); // Sang bước nhập OTP
+            setOtpTimer(60); // Reset timer
+        }
+    }
+})
+.catch((err) => {
+    toast.error(err.response?.data?.message || "Login failed");
+});
+    }
 
     const handleResendOtp = async () => {
         const deviceInfo = getDeviceInfo();
@@ -128,9 +128,9 @@ const setDeviceInfo = (encryptedDeviceId, signature) => {
       { withCredentials: true }
     ).then(() => {
       toast.success("Login Success!");
-      setTimeout(() => {
-        navigate("/");
-      }, 100);
+    //   setTimeout(() => {
+    //     navigate("/");
+    //   }, 100);
       window.location.reload(true);
     })
     .catch((err) => {
