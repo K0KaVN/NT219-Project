@@ -9,8 +9,11 @@ const sendMail = require("../utils/sendMail");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const sendToken = require("../utils/jwtToken");
 const { isAuthenticated, isAdmin } = require("../middleware/auth");
-
+const Otp = require("../model/otp");
 const router = express.Router();
+const { encryptDeviceId, decryptDeviceId, signDeviceId, verifyDeviceId } = require('../utils/deviceIdSecurity');
+const crypto = require("crypto");
+const PUBLIC_KEY = process.env.EC_PUBLIC_KEY && process.env.EC_PUBLIC_KEY.trim();
 
 router.post("/create-user", upload.single("file"), async (req, res, next) => {
   try {
@@ -112,25 +115,139 @@ router.post(
   "/login-user",
   catchAsyncErrors(async (req, res, next) => {
     try {
-      const { email, password } = req.body;
-
+      // Lấy deviceId từ frontend (luôn yêu cầu encryptedDeviceId và signature)
+      let deviceId, encryptedDeviceId, signature;
+      if (req.body.encryptedDeviceId && req.body.signature) {
+        encryptedDeviceId = req.body.encryptedDeviceId;
+        signature = req.body.signature;
+        const isValid = verifyDeviceId(encryptedDeviceId, signature, PUBLIC_KEY);
+        if (!isValid) return next(new ErrorHandler("DeviceId signature invalid", 400));
+        deviceId = decryptDeviceId(encryptedDeviceId);
+      } else {
+        // Không nhận deviceId thuần nữa, luôn yêu cầu mã hóa và ký số
+        // Nếu thiếu, sinh mới và trả về cho frontend lưu lại
+        deviceId = crypto.randomBytes(16).toString('hex');
+        encryptedDeviceId = encryptDeviceId(deviceId);
+        signature = signDeviceId(encryptedDeviceId);
+        // Gửi OTP như bình thường
+        const { email, password, userAgent } = req.body;
+        if (!email || !password) {
+          return next(new ErrorHandler("Please provide the all filelds", 400));
+        }
+        const user = await User.findOne({ email }).select("+password");
+        if (!user) {
+          return next(new ErrorHandler("user doesn't exits", 400));
+        }
+        // Kiểm tra thiết bị quen
+        const knownDevice = user.devices?.find(
+          (d) => d.deviceId === deviceId && d.userAgent === userAgent
+        );
+        if (knownDevice) {
+          return sendToken(user, 201, res, { skipOtp: true });
+        }
+        // Nếu chưa có thiết bị, kiểm tra password và gửi OTP như cũ
+        const isPasswordValid = await user.comparePassword(password);
+        if (!isPasswordValid) {
+          return next(
+            new ErrorHandler("Please provide the correct inforamtions", 400)
+          );
+        }
+        // Tạo OTP 6 số
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+        await Otp.deleteMany({ email });
+        await Otp.create({
+          email,
+          otp: hashedOtp,
+          expiresAt: Date.now() + 60 * 1000,
+        });
+        await sendMail({
+          email,
+          subject: "Your OTP Code",
+          message: `Your OTP code is: ${otp}`,
+        });
+        // Trả về encryptedDeviceId và signature cho frontend lưu lại
+        return res.status(200).json({ success: true, message: "OTP sent to your email", encryptedDeviceId, signature });
+      }
+      // ... Tiếp tục xử lý nếu đã có encryptedDeviceId và signature ...
+      const { email, password, userAgent } = req.body;
       if (!email || !password) {
         return next(new ErrorHandler("Please provide the all filelds", 400));
       }
       const user = await User.findOne({ email }).select("+password");
-      // +password is used to select the password field from the database
-
       if (!user) {
         return next(new ErrorHandler("user doesn't exits", 400));
       }
-
-      // compore password with database password
+      // Kiểm tra thiết bị quen
+      const knownDevice = user.devices?.find(
+        (d) => d.deviceId === deviceId && d.userAgent === userAgent
+      );
+      if (knownDevice) {
+        return sendToken(user, 201, res, { skipOtp: true });
+      }
+      // Nếu chưa có thiết bị, kiểm tra password và gửi OTP như cũ
       const isPasswordValid = await user.comparePassword(password);
-
       if (!isPasswordValid) {
         return next(
           new ErrorHandler("Please provide the correct inforamtions", 400)
         );
+      }
+      // Tạo OTP 6 số
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+      await Otp.deleteMany({ email });
+      await Otp.create({
+        email,
+        otp: hashedOtp,
+        expiresAt: Date.now() + 60 * 1000,
+      });
+      await sendMail({
+        email,
+        subject: "Your OTP Code",
+        message: `Your OTP code is: ${otp}`,
+      });
+      // Đã có encryptedDeviceId và signature, không cần trả về nữa
+      res.status(200).json({ success: true, message: "OTP sent to your email" });
+    } catch (error) {
+      return next(new ErrorHandler(error.message, 500));
+    }
+  })
+);
+
+router.post(
+  "/login-verify-otp",
+  catchAsyncErrors(async (req, res, next) => {
+    try {
+      const { email, otp, encryptedDeviceId, signature, userAgent } = req.body;
+      // Kiểm tra public key hợp lệ
+      if (!PUBLIC_KEY || !/^04[0-9a-fA-F]{128}$/.test(PUBLIC_KEY)) {
+        return next(new ErrorHandler("EC_PUBLIC_KEY format invalid", 500));
+      }
+      const isValid = verifyDeviceId(encryptedDeviceId, signature, PUBLIC_KEY);
+      if (!isValid) return next(new ErrorHandler("DeviceId signature invalid", 400));
+      const deviceId = decryptDeviceId(encryptedDeviceId);
+      const record = await Otp.findOne({ email });
+      if (!record || record.expiresAt < Date.now()) {
+        return next(new ErrorHandler("OTP invalid or expired", 400));
+      }
+      const hashedInputOtp = crypto.createHash("sha256").update(otp).digest("hex");
+      if (hashedInputOtp !== record.otp) {
+        return next(new ErrorHandler("OTP invalid or expired", 400));
+      }
+      await Otp.deleteOne({ email });
+      const user = await User.findOne({ email });
+      if (
+        !user.devices?.some(
+          (d) => d.deviceId === deviceId && d.userAgent === userAgent
+        )
+      ) {
+        user.devices = user.devices || [];
+        user.devices.push({
+          deviceId,
+          userAgent,
+          lastLogin: new Date(),
+        });
+        await user.save();
       }
       sendToken(user, 201, res);
     } catch (error) {

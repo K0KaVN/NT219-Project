@@ -1,6 +1,7 @@
 import React from "react";
 import "./App.css";
 import Store from "./redux/store";
+import { AuthProvider } from "./context/AuthContext";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import {
   LoginPage,
@@ -69,6 +70,7 @@ const App = () => {
   }, []);
 
   return (
+    <AuthProvider>
     <BrowserRouter>
       <Routes>
         <Route
@@ -333,6 +335,7 @@ const App = () => {
         theme="dark"
       />
     </BrowserRouter>
+    </AuthProvider>
   );
 };
 export default App;
