@@ -23,21 +23,21 @@ const Login = () => {
     //const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     // Hàm lấy device info từ localStorage
-const getDeviceInfo = () => {
-  const raw = localStorage.getItem("deviceInfo");
-  if (!raw) return null;
-  try {
-    const obj = JSON.parse(raw);
-    if (obj.encryptedDeviceId && obj.signature) return obj;
-    return null;
-  } catch {
-    return null;
-  }
-};
+// const getDeviceInfo = () => {
+//   const raw = localStorage.getItem("deviceInfo");
+//   if (!raw) return null;
+//   try {
+//     const obj = JSON.parse(raw);
+//     if (obj.encryptedDeviceId && obj.signature) return obj;
+//     return null;
+//   } catch {
+//     return null;
+//   }
+// };
 // Lưu device info vào localStorage
-const setDeviceInfo = (encryptedDeviceId, signature) => {
-  localStorage.setItem("deviceInfo", JSON.stringify({ encryptedDeviceId, signature }));
-};
+// const setDeviceInfo = (encryptedDeviceId, signature) => {
+//   localStorage.setItem("deviceInfo", JSON.stringify({ encryptedDeviceId, signature }));
+// };
 
     useEffect(() => {
         if (step === 2 && otpTimer > 0) {
@@ -48,12 +48,11 @@ const setDeviceInfo = (encryptedDeviceId, signature) => {
 
     const handleSubmit = async (e) => {
     e.preventDefault();
-    const deviceInfo = getDeviceInfo();
+    //const deviceInfo = getDeviceInfo();
     const payload = {
       email,
       password,
       userAgent: navigator.userAgent,
-      ...(deviceInfo ? { encryptedDeviceId: deviceInfo.encryptedDeviceId, signature: deviceInfo.signature } : {})
     };
     await axios
         .post(
@@ -61,8 +60,7 @@ const setDeviceInfo = (encryptedDeviceId, signature) => {
             payload,
             { withCredentials: true }
         ).then((res) => {
-    if (res.data.encryptedDeviceId && res.data.signature) {
-        setDeviceInfo(res.data.encryptedDeviceId, res.data.signature);
+        //setDeviceInfo(res.data.encryptedDeviceId, res.data.signature);
         if (res.data.skipOtp) {
             toast.success("Login Success!");
             setStep(1); // Reset về bước 1
@@ -73,7 +71,6 @@ const setDeviceInfo = (encryptedDeviceId, signature) => {
             setStep(2); // Sang bước nhập OTP
             setOtpTimer(60); // Reset timer
         }
-    }
 })
 .catch((err) => {
     toast.error(err.response?.data?.message || "Login failed");
@@ -81,12 +78,12 @@ const setDeviceInfo = (encryptedDeviceId, signature) => {
     }
 
     const handleResendOtp = async () => {
-        const deviceInfo = getDeviceInfo();
+        //const deviceInfo = getDeviceInfo();
         const payload = {
           email,
           password,
           userAgent: navigator.userAgent,
-          ...(deviceInfo ? { encryptedDeviceId: deviceInfo.encryptedDeviceId, signature: deviceInfo.signature } : {})
+        //   ...(deviceInfo ? { encryptedDeviceId: deviceInfo.encryptedDeviceId, signature: deviceInfo.signature } : {})
         };
         await axios
             .post(
@@ -94,9 +91,6 @@ const setDeviceInfo = (encryptedDeviceId, signature) => {
                 payload,
                 { withCredentials: true }
             ).then((res) => {
-                if (res.data.encryptedDeviceId && res.data.signature) {
-                    setDeviceInfo(res.data.encryptedDeviceId, res.data.signature);
-                }
                 if (!res.data.skipOtp) {
                     toast.success("OTP resent to your email!");
                     setOtpTimer(60); // reset timer
@@ -109,20 +103,12 @@ const setDeviceInfo = (encryptedDeviceId, signature) => {
 
     const handleOtpSubmit = async (e) => {
   e.preventDefault();
-  const deviceInfo = getDeviceInfo();
-  if (!deviceInfo) {
-    toast.error("Thiết bị không hợp lệ. Vui lòng đăng nhập lại.");
-    setStep(1);
-    return;
-  }
   await axios
     .post(
       `${server}/user/login-verify-otp`,
       {
         email,
         otp,
-        encryptedDeviceId: deviceInfo.encryptedDeviceId,
-        signature: deviceInfo.signature,
         userAgent: navigator.userAgent,
       },
       { withCredentials: true }
@@ -134,7 +120,7 @@ const setDeviceInfo = (encryptedDeviceId, signature) => {
       window.location.reload(true);
     })
     .catch((err) => {
-      toast.error(err.response?.data?.message || "OTP xác thực thất bại");
+      toast.error(err.response?.data?.message || "OTP verification failed.");
     });
 };
     //if (isLoading) return null;
@@ -234,7 +220,7 @@ const setDeviceInfo = (encryptedDeviceId, signature) => {
                         <div>
                             <button
                                 type='submit'
-                                className=' className="group relative w-full h-[40px] flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"'
+                                className='group relative w-full h-[40px] flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700'
                             >
                                 Submit
                             </button>

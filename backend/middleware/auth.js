@@ -6,13 +6,36 @@ const Shop = require("../model/shop");
 
 // Check if user is authenticated or not
 exports.isAuthenticated = catchAsyncErrors(async (req, res, next) => {
-  const { token } = req.cookies;
+  const { token, encryptedDeviceId, signature } = req.cookies;
   if (!token) {
     return next(new ErrorHandler("Please login to continue", 401));
   }
   const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
 
-  req.user = await User.findById(decoded.id);
+  const user = await User.findById(decoded.id);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 401));
+  }
+
+  // Lấy deviceId, userAgent, IP hiện tại
+  const deviceId = encryptedDeviceId && signature
+    ? require("../utils/deviceIdSecurity").decryptDeviceId(encryptedDeviceId)
+    : null;
+  const userAgent = req.headers['user-agent'];
+  const ip =
+    req.headers['x-forwarded-for']?.split(',').shift() ||
+    req.socket?.remoteAddress ||
+    null;
+
+  // Kiểm tra deviceId, userAgent, IP có khớp với user.devices không
+  const matchedDevice = user.devices?.find(
+    (d) => d.deviceId === deviceId && d.userAgent === userAgent && d.ip === ip
+  );
+  if (!matchedDevice) {
+    return next(new ErrorHandler("Thiết bị hoặc môi trường không hợp lệ", 401));
+  }
+
+  req.user = user;
   next();
 });
 

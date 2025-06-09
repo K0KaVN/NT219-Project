@@ -115,61 +115,48 @@ router.post(
   "/login-user",
   catchAsyncErrors(async (req, res, next) => {
     try {
-      // Lấy deviceId từ frontend (luôn yêu cầu encryptedDeviceId và signature)
       let deviceId, encryptedDeviceId, signature;
-      if (req.body.encryptedDeviceId && req.body.signature) {
-        encryptedDeviceId = req.body.encryptedDeviceId;
-        signature = req.body.signature;
+      let cookiesReset = false;
+      // ƯU TIÊN LẤY TỪ COOKIE
+      if (req.cookies.encryptedDeviceId && req.cookies.signature) {
+        encryptedDeviceId = req.cookies.encryptedDeviceId;
+        signature = req.cookies.signature;
         const isValid = verifyDeviceId(encryptedDeviceId, signature, PUBLIC_KEY);
-        if (!isValid) return next(new ErrorHandler("DeviceId signature invalid", 400));
-        deviceId = decryptDeviceId(encryptedDeviceId);
+        if (!isValid) {
+          // XÓA cookie cũ nếu không hợp lệ
+          res.cookie("encryptedDeviceId", "", { expires: new Date(0), httpOnly: true, sameSite: "strict", secure: true });
+          res.cookie("signature", "", { expires: new Date(0), httpOnly: true, sameSite: "strict", secure: true });
+          // Sinh deviceId mới
+          deviceId = crypto.randomBytes(16).toString('hex');
+          encryptedDeviceId = encryptDeviceId(deviceId);
+          signature = signDeviceId(encryptedDeviceId);
+          res.cookie("encryptedDeviceId", encryptedDeviceId, { httpOnly: true, sameSite: "strict", secure: true, maxAge: 90 * 24 * 60 * 60 * 1000 });
+          res.cookie("signature", signature, { httpOnly: true, sameSite: "strict", secure: true, maxAge: 90 * 24 * 60 * 60 * 1000 });
+          cookiesReset = true;
+        } else {
+          deviceId = decryptDeviceId(encryptedDeviceId);
+        }
       } else {
-        // Không nhận deviceId thuần nữa, luôn yêu cầu mã hóa và ký số
-        // Nếu thiếu, sinh mới và trả về cho frontend lưu lại
+        // Nếu chưa có, sinh mới và set cookie
         deviceId = crypto.randomBytes(16).toString('hex');
         encryptedDeviceId = encryptDeviceId(deviceId);
         signature = signDeviceId(encryptedDeviceId);
-        // Gửi OTP như bình thường
-        const { email, password, userAgent } = req.body;
-        if (!email || !password) {
-          return next(new ErrorHandler("Please provide the all filelds", 400));
-        }
-        const user = await User.findOne({ email }).select("+password");
-        if (!user) {
-          return next(new ErrorHandler("user doesn't exits", 400));
-        }
-        // Kiểm tra thiết bị quen
-        const knownDevice = user.devices?.find(
-          (d) => d.deviceId === deviceId && d.userAgent === userAgent
-        );
-        if (knownDevice) {
-          return sendToken(user, 201, res, { skipOtp: true });
-        }
-        // Nếu chưa có thiết bị, kiểm tra password và gửi OTP như cũ
-        const isPasswordValid = await user.comparePassword(password);
-        if (!isPasswordValid) {
-          return next(
-            new ErrorHandler("Please provide the correct inforamtions", 400)
-          );
-        }
-        // Tạo OTP 6 số
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
-        await Otp.deleteMany({ email });
-        await Otp.create({
-          email,
-          otp: hashedOtp,
-          expiresAt: Date.now() + 60 * 1000,
+        res.cookie("encryptedDeviceId", encryptedDeviceId, {
+          httpOnly: true,
+          sameSite: "strict",
+          secure: true,
+          maxAge: 90 * 24 * 60 * 60 * 1000,
         });
-        await sendMail({
-          email,
-          subject: "Your OTP Code",
-          message: `Your OTP code is: ${otp}`,
+        res.cookie("signature", signature, {
+          httpOnly: true,
+          sameSite: "strict",
+          secure: true,
+          maxAge: 90 * 24 * 60 * 60 * 1000,
         });
-        // Trả về encryptedDeviceId và signature cho frontend lưu lại
-        return res.status(200).json({ success: true, message: "OTP sent to your email", encryptedDeviceId, signature });
+        cookiesReset = true;
       }
-      // ... Tiếp tục xử lý nếu đã có encryptedDeviceId và signature ...
+
+      // Tiếp tục xử lý login như bình thường
       const { email, password, userAgent } = req.body;
       if (!email || !password) {
         return next(new ErrorHandler("Please provide the all filelds", 400));
@@ -178,9 +165,13 @@ router.post(
       if (!user) {
         return next(new ErrorHandler("user doesn't exits", 400));
       }
+      const ip =
+      req.headers['x-forwarded-for']?.split(',').shift() ||
+      req.socket?.remoteAddress ||
+      null;
       // Kiểm tra thiết bị quen
       const knownDevice = user.devices?.find(
-        (d) => d.deviceId === deviceId && d.userAgent === userAgent
+        (d) => d.deviceId === deviceId && d.userAgent === userAgent && d.ip === ip
       );
       if (knownDevice) {
         return sendToken(user, 201, res, { skipOtp: true });
@@ -206,8 +197,12 @@ router.post(
         subject: "Your OTP Code",
         message: `Your OTP code is: ${otp}`,
       });
-      // Đã có encryptedDeviceId và signature, không cần trả về nữa
-      res.status(200).json({ success: true, message: "OTP sent to your email" });
+      // Trả về encryptedDeviceId và signature cho frontend lưu lại (nếu vừa reset)
+      if (cookiesReset) {
+        return res.status(200).json({ success: true, message: "OTP sent to your email", encryptedDeviceId, signature });
+      } else {
+        return res.status(200).json({ success: true, message: "OTP sent to your email" });
+      }
     } catch (error) {
       return next(new ErrorHandler(error.message, 500));
     }
@@ -218,7 +213,16 @@ router.post(
   "/login-verify-otp",
   catchAsyncErrors(async (req, res, next) => {
     try {
-      const { email, otp, encryptedDeviceId, signature, userAgent } = req.body;
+      const { email, otp, userAgent } = req.body;
+      const encryptedDeviceId = req.cookies.encryptedDeviceId;
+      const signature = req.cookies.signature;
+      const ip =
+        req.headers['x-forwarded-for']?.split(',').shift() ||
+        req.socket?.remoteAddress ||
+        null;
+      if (!encryptedDeviceId || !signature) {
+        return next(new ErrorHandler("Missing device info", 400));
+      }
       // Kiểm tra public key hợp lệ
       if (!PUBLIC_KEY || !/^04[0-9a-fA-F]{128}$/.test(PUBLIC_KEY)) {
         return next(new ErrorHandler("EC_PUBLIC_KEY format invalid", 500));
@@ -245,6 +249,7 @@ router.post(
         user.devices.push({
           deviceId,
           userAgent,
+          ip,
           lastLogin: new Date(),
         });
         await user.save();
@@ -282,11 +287,13 @@ router.get(
   "/logout",
   catchAsyncErrors(async (req, res, next) => {
     try {
-      res.cookie("token", null, {
-        expires: new Date(Date.now()),
+      res.cookie("token", "", {
+        expires: new Date(0),
         httpOnly: true,
+        sameSite: "strict",
+        secure: true,
       });
-      res.status(201).json({
+      res.status(200).json({
         success: true,
         message: "Log out successful!",
       });
