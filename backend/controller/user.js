@@ -64,10 +64,7 @@ router.post("/create-user", upload.single("file"), async (req, res, next) => {
   }
 });
 
-// create activation token
 const createActivationToken = (user) => {
-  // why use create activatetoken?
-  // to create a token for the user to activate their account  after they register
   return jwt.sign(user, process.env.ACTIVATION_SECRET, {
     expiresIn: "5m",
   });
@@ -78,12 +75,14 @@ router.post(
   "/activation",
   catchAsyncErrors(async (req, res, next) => {
     try {
+      
       const { activation_token } = req.body;
 
       const newUser = jwt.verify(
         activation_token,
         process.env.ACTIVATION_SECRET
       );
+
       if (!newUser) {
         return next(new ErrorHandler("Invalid token", 400));
       }
