@@ -1,20 +1,22 @@
-import React from 'react'
-import styles from '../../styles/styles'
+import React from 'react';
+import styles from '../../styles/styles';
 
 const CheckoutSteps = ({ active }) => {
-    console.log(active);
+    // console.log(active); // Removed console.log for clean output
     return (
         <div className='w-full flex justify-center'>
             <div className="w-[90%] 800px:w-[50%] flex items-center flex-wrap">
+                {/* Step 1: Shipping */}
                 <div className={`${styles.noramlFlex}`}>
                     <div className={`${styles.cart_button}`}>
                         <span className={`${styles.cart_button_text}`}>1.Shipping</span>
                     </div>
                     <div className={`${active > 1 ? "w-[30px] 800px:w-[70px] h-[4px] !bg-[#f63b60]"
-                            : "w-[30px] 800px:w-[70px] h-[4px] !bg-[#FDE1E6]"
+                        : "w-[30px] 800px:w-[70px] h-[4px] !bg-[#FDE1E6]"
                         }`} />
                 </div>
 
+                {/* Step 2: Payment */}
                 <div className={`${styles.noramlFlex}`}>
                     <div className={`${active > 1 ? `${styles.cart_button}` : `${styles.cart_button} !bg-[#FDE1E6]`}`}>
                         <span className={`${active > 1 ? `${styles.cart_button_text}` : `${styles.cart_button_text} !text-[#f63b60]`}`}>
@@ -23,9 +25,10 @@ const CheckoutSteps = ({ active }) => {
                     </div>
                 </div>
 
+                {/* Step 3: Success */}
                 <div className={`${styles.noramlFlex}`}>
                     <div className={`${active > 3 ? "w-[30px] 800px:w-[70px] h-[4px] !bg-[#f63b60]"
-                            : "w-[30px] 800px:w-[70px] h-[4px] !bg-[#FDE1E6]"
+                        : "w-[30px] 800px:w-[70px] h-[4px] !bg-[#FDE1E6]"
                         }`} />
                     <div className={`${active > 2 ? `${styles.cart_button}` : `${styles.cart_button} !bg-[#FDE1E6]`}`}>
                         <span className={`${active > 2 ? `${styles.cart_button_text}` : `${styles.cart_button_text} !text-[#f63b60]`}`}>
@@ -38,4 +41,4 @@ const CheckoutSteps = ({ active }) => {
     )
 }
 
-export default CheckoutSteps
+export default CheckoutSteps;

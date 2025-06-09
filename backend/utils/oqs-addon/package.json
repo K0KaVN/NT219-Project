@@ -1,0 +1,15 @@
+{
+  "name": "oqs-addon",
+  "version": "1.0.0",
+  "description": "Node.js Native Addon for Open Quantum Safe (OQS) library",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "install": "node-gyp configure build",
+    "build": "node-gyp build",
+    "clean": "node-gyp clean"
+  },
+  "dependencies": {
+    "node-gyp": "^10.0.0"
+  }
+}

@@ -22,6 +22,11 @@ router.post(
       } else {
         const files = req.files;
         const imageUrls = files.map((file) => `${file.filename}`);
+        // const files = req.files;
+        // if (!files || files.length === 0) {
+        // return next(new ErrorHandler("No images uploaded!", 400));
+        // }
+        // const imageUrls = files.map((file) => `${file.filename}`);
 
         const eventData = req.body;
         eventData.images = imageUrls;

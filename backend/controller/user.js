@@ -9,8 +9,75 @@ const sendMail = require("../utils/sendMail");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const sendToken = require("../utils/jwtToken");
 const { isAuthenticated, isAdmin } = require("../middleware/auth");
-
+const Otp = require("../model/otp");
 const router = express.Router();
+const { encryptDeviceId, decryptDeviceId, signDeviceId, verifyDeviceId } = require('../utils/deviceIdSecurity');
+const crypto = require("crypto");
+const PUBLIC_KEY = process.env.EC_PUBLIC_KEY && process.env.EC_PUBLIC_KEY.trim();
+
+// --- New route: Set or Update Payment PIN ---
+router.put(
+    "/set-payment-pin",
+    isAuthenticated, // User must be logged in to set/update PIN
+    catchAsyncErrors(async (req, res, next) => {
+        try {
+            const { currentPassword, newPin } = req.body; // currentPassword for security, newPin for the new PIN
+
+            if (!newPin || newPin.length !== 6 || !/^\d+$/.test(newPin)) {
+                return next(new ErrorHandler("Payment PIN must be a 6-digit number.", 400));
+            }
+
+            // Find user, explicitly selecting password and paymentPin for verification
+            const user = await User.findById(req.user.id).select("+password +paymentPin");
+
+            if (!user) {
+                return next(new ErrorHandler("User not found", 404));
+            }
+
+            // Verify user's current password for security before allowing PIN change
+            const isPasswordMatched = await user.comparePassword(currentPassword);
+
+            if (!isPasswordMatched) {
+                return next(new ErrorHandler("Current password is incorrect", 400));
+            }
+
+            // Update the payment PIN
+            user.paymentPin = newPin;
+            await user.save(); // Mongoose pre-save hook will hash the newPin
+
+            res.status(200).json({
+                success: true,
+                message: "Payment PIN set/updated successfully!",
+            });
+
+        } catch (error) {
+            console.error("Error setting/updating payment PIN:", error);
+            return next(new ErrorHandler(error.message, 500));
+        }
+    })
+);
+
+// You might also want a route to check if a PIN is set (e.g., for UI purposes)
+router.get(
+    "/has-payment-pin",
+    isAuthenticated,
+    catchAsyncErrors(async (req, res, next) => {
+        try {
+            const user = await User.findById(req.user.id).select("+paymentPin");
+            if (!user) {
+                return next(new ErrorHandler("User not found", 404));
+            }
+            res.status(200).json({
+                success: true,
+                hasPin: !!user.paymentPin, // Returns true if paymentPin is set, false otherwise
+            });
+        } catch (error) {
+            console.error("Error checking payment PIN status:", error);
+            return next(new ErrorHandler(error.message, 500));
+        }
+    })
+);
+
 
 router.post("/create-user", upload.single("file"), async (req, res, next) => {
   try {
@@ -111,25 +178,144 @@ router.post(
   "/login-user",
   catchAsyncErrors(async (req, res, next) => {
     try {
-      const { email, password } = req.body;
+      let deviceId, encryptedDeviceId, signature;
+      let cookiesReset = false;
+      // ƯU TIÊN LẤY TỪ COOKIE
+      if (req.cookies.encryptedDeviceId && req.cookies.signature) {
+        encryptedDeviceId = req.cookies.encryptedDeviceId;
+        signature = req.cookies.signature;
+        const isValid = verifyDeviceId(encryptedDeviceId, signature, PUBLIC_KEY);
+        if (!isValid) {
+          // XÓA cookie cũ nếu không hợp lệ
+          res.cookie("encryptedDeviceId", "", { expires: new Date(0), httpOnly: true, sameSite: "strict", secure: true });
+          res.cookie("signature", "", { expires: new Date(0), httpOnly: true, sameSite: "strict", secure: true });
+          // Sinh deviceId mới
+          deviceId = crypto.randomBytes(16).toString('hex');
+          encryptedDeviceId = encryptDeviceId(deviceId);
+          signature = signDeviceId(encryptedDeviceId);
+          res.cookie("encryptedDeviceId", encryptedDeviceId, { httpOnly: true, sameSite: "strict", secure: true, maxAge: 90 * 24 * 60 * 60 * 1000 });
+          res.cookie("signature", signature, { httpOnly: true, sameSite: "strict", secure: true, maxAge: 90 * 24 * 60 * 60 * 1000 });
+          cookiesReset = true;
+        } else {
+          deviceId = decryptDeviceId(encryptedDeviceId);
+        }
+      } else {
+        // Nếu chưa có, sinh mới và set cookie
+        deviceId = crypto.randomBytes(16).toString('hex');
+        encryptedDeviceId = encryptDeviceId(deviceId);
+        signature = signDeviceId(encryptedDeviceId);
+        res.cookie("encryptedDeviceId", encryptedDeviceId, {
+          httpOnly: true,
+          sameSite: "strict",
+          secure: true,
+          maxAge: 90 * 24 * 60 * 60 * 1000,
+        });
+        res.cookie("signature", signature, {
+          httpOnly: true,
+          sameSite: "strict",
+          secure: true,
+          maxAge: 90 * 24 * 60 * 60 * 1000,
+        });
+        cookiesReset = true;
+      }
 
+      // Tiếp tục xử lý login như bình thường
+      const { email, password, userAgent } = req.body;
       if (!email || !password) {
         return next(new ErrorHandler("Please provide the all filelds", 400));
       }
       const user = await User.findOne({ email }).select("+password");
-      // +password is used to select the password field from the database
-
       if (!user) {
         return next(new ErrorHandler("user doesn't exits", 400));
       }
-
-      // compore password with database password
+      const ip =
+      req.headers['x-forwarded-for']?.split(',').shift() ||
+      req.socket?.remoteAddress ||
+      null;
+      // Kiểm tra thiết bị quen
+      const knownDevice = user.devices?.find(
+        (d) => d.deviceId === deviceId && d.userAgent === userAgent && d.ip === ip
+      );
+      if (knownDevice) {
+        return sendToken(user, 201, res, { skipOtp: true });
+      }
+      // Nếu chưa có thiết bị, kiểm tra password và gửi OTP như cũ
       const isPasswordValid = await user.comparePassword(password);
-
       if (!isPasswordValid) {
         return next(
           new ErrorHandler("Please provide the correct inforamtions", 400)
         );
+      }
+      // Tạo OTP 6 số
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+      await Otp.deleteMany({ email });
+      await Otp.create({
+        email,
+        otp: hashedOtp,
+        expiresAt: Date.now() + 60 * 1000,
+      });
+      await sendMail({
+        email,
+        subject: "Your OTP Code",
+        message: `Your OTP code is: ${otp}`,
+      });
+      // Trả về encryptedDeviceId và signature cho frontend lưu lại (nếu vừa reset)
+      if (cookiesReset) {
+        return res.status(200).json({ success: true, message: "OTP sent to your email", encryptedDeviceId, signature });
+      } else {
+        return res.status(200).json({ success: true, message: "OTP sent to your email" });
+      }
+    } catch (error) {
+      return next(new ErrorHandler(error.message, 500));
+    }
+  })
+);
+
+router.post(
+  "/login-verify-otp",
+  catchAsyncErrors(async (req, res, next) => {
+    try {
+      const { email, otp, userAgent } = req.body;
+      const encryptedDeviceId = req.cookies.encryptedDeviceId;
+      const signature = req.cookies.signature;
+      const ip =
+        req.headers['x-forwarded-for']?.split(',').shift() ||
+        req.socket?.remoteAddress ||
+        null;
+      if (!encryptedDeviceId || !signature) {
+        return next(new ErrorHandler("Missing device info", 400));
+      }
+      // Kiểm tra public key hợp lệ
+      if (!PUBLIC_KEY || !/^04[0-9a-fA-F]{128}$/.test(PUBLIC_KEY)) {
+        return next(new ErrorHandler("EC_PUBLIC_KEY format invalid", 500));
+      }
+      const isValid = verifyDeviceId(encryptedDeviceId, signature, PUBLIC_KEY);
+      if (!isValid) return next(new ErrorHandler("DeviceId signature invalid", 400));
+      const deviceId = decryptDeviceId(encryptedDeviceId);
+      const record = await Otp.findOne({ email });
+      if (!record || record.expiresAt < Date.now()) {
+        return next(new ErrorHandler("OTP invalid or expired", 400));
+      }
+      const hashedInputOtp = crypto.createHash("sha256").update(otp).digest("hex");
+      if (hashedInputOtp !== record.otp) {
+        return next(new ErrorHandler("OTP invalid or expired", 400));
+      }
+      await Otp.deleteOne({ email });
+      const user = await User.findOne({ email });
+      if (
+        !user.devices?.some(
+          (d) => d.deviceId === deviceId && d.userAgent === userAgent
+        )
+      ) {
+        user.devices = user.devices || [];
+        user.devices.push({
+          deviceId,
+          userAgent,
+          ip,
+          lastLogin: new Date(),
+        });
+        await user.save();
       }
       sendToken(user, 201, res);
     } catch (error) {
@@ -164,11 +350,13 @@ router.get(
   "/logout",
   catchAsyncErrors(async (req, res, next) => {
     try {
-      res.cookie("token", null, {
-        expires: new Date(Date.now()),
+      res.cookie("token", "", {
+        expires: new Date(0),
         httpOnly: true,
+        sameSite: "strict",
+        secure: true,
       });
-      res.status(201).json({
+      res.status(200).json({
         success: true,
         message: "Log out successful!",
       });

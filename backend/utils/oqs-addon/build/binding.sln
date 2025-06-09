@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2015
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "oqs_addon", "oqs_addon.vcxproj", "{870B1D36-F8EC-6E4B-FD72-DC1E732BA653}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{870B1D36-F8EC-6E4B-FD72-DC1E732BA653}.Debug|x64.ActiveCfg = Debug|x64
+		{870B1D36-F8EC-6E4B-FD72-DC1E732BA653}.Debug|x64.Build.0 = Debug|x64
+		{870B1D36-F8EC-6E4B-FD72-DC1E732BA653}.Release|x64.ActiveCfg = Release|x64
+		{870B1D36-F8EC-6E4B-FD72-DC1E732BA653}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
