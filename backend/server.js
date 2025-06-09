@@ -7,6 +7,7 @@ const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const path = require("path");
+require('dotenv').config();
 
 // Import OQS Signature utility
 const { initOQSSignature } = require('./utils/oqsSignature');
