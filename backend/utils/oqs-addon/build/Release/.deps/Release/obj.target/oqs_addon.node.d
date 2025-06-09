@@ -1,0 +1,1 @@
+cmd_Release/obj.target/oqs_addon.node := g++ -o Release/obj.target/oqs_addon.node -shared -pthread -rdynamic -m64  -Wl,-soname=oqs_addon.node -Wl,--start-group Release/obj.target/oqs_addon/oqs_addon.o -Wl,--end-group /usr/local/lib/liboqs.so

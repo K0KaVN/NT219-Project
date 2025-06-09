@@ -1,0 +1,1 @@
+cmd_Release/oqs_addon.node := ln -f "Release/obj.target/oqs_addon.node" "Release/oqs_addon.node" 2>/dev/null || (rm -rf "Release/oqs_addon.node" && cp -af "Release/obj.target/oqs_addon.node" "Release/oqs_addon.node")
