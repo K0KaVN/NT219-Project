@@ -12,6 +12,70 @@ const { isAuthenticated, isAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 
+// --- New route: Set or Update Payment PIN ---
+router.put(
+    "/set-payment-pin",
+    isAuthenticated, // User must be logged in to set/update PIN
+    catchAsyncErrors(async (req, res, next) => {
+        try {
+            const { currentPassword, newPin } = req.body; // currentPassword for security, newPin for the new PIN
+
+            if (!newPin || newPin.length !== 6 || !/^\d+$/.test(newPin)) {
+                return next(new ErrorHandler("Payment PIN must be a 6-digit number.", 400));
+            }
+
+            // Find user, explicitly selecting password and paymentPin for verification
+            const user = await User.findById(req.user.id).select("+password +paymentPin");
+
+            if (!user) {
+                return next(new ErrorHandler("User not found", 404));
+            }
+
+            // Verify user's current password for security before allowing PIN change
+            const isPasswordMatched = await user.comparePassword(currentPassword);
+
+            if (!isPasswordMatched) {
+                return next(new ErrorHandler("Current password is incorrect", 400));
+            }
+
+            // Update the payment PIN
+            user.paymentPin = newPin;
+            await user.save(); // Mongoose pre-save hook will hash the newPin
+
+            res.status(200).json({
+                success: true,
+                message: "Payment PIN set/updated successfully!",
+            });
+
+        } catch (error) {
+            console.error("Error setting/updating payment PIN:", error);
+            return next(new ErrorHandler(error.message, 500));
+        }
+    })
+);
+
+// You might also want a route to check if a PIN is set (e.g., for UI purposes)
+router.get(
+    "/has-payment-pin",
+    isAuthenticated,
+    catchAsyncErrors(async (req, res, next) => {
+        try {
+            const user = await User.findById(req.user.id).select("+paymentPin");
+            if (!user) {
+                return next(new ErrorHandler("User not found", 404));
+            }
+            res.status(200).json({
+                success: true,
+                hasPin: !!user.paymentPin, // Returns true if paymentPin is set, false otherwise
+            });
+        } catch (error) {
+            console.error("Error checking payment PIN status:", error);
+            return next(new ErrorHandler(error.message, 500));
+        }
+    })
+);
+
+
 router.post("/create-user", upload.single("file"), async (req, res, next) => {
   try {
     const { name, email, password } = req.body;

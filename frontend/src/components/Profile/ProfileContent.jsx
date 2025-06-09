@@ -18,7 +18,7 @@ import { toast } from "react-toastify";
 import axios from 'axios';
 import { Country, State } from "country-state-city";
 import { getAllOrdersOfUser } from '../../redux/actions/order';
-
+import SecuritySettings from './SecuritySettings'; // Import your SecuritySettings component
 
 const ProfileContent = ({ active }) => {
     const { user, error, successMessage } = useSelector((state) => state.user);
@@ -29,7 +29,6 @@ const ProfileContent = ({ active }) => {
     const [avatar, setAvatar] = useState(null);
 
     const dispatch = useDispatch();
-
 
     useEffect(() => {
         if (error) {
@@ -42,7 +41,6 @@ const ProfileContent = ({ active }) => {
         }
     }, [error, successMessage]);
 
-
     const handleSubmit = (e) => {
         e.preventDefault();
         dispatch(updateUserInformation(name, email, phoneNumber, password));
@@ -54,7 +52,6 @@ const ProfileContent = ({ active }) => {
         setAvatar(file);
 
         const formData = new FormData();
-
         formData.append("image", e.target.files[0]);
 
         await axios
@@ -66,17 +63,16 @@ const ProfileContent = ({ active }) => {
             })
             .then((response) => {
                 dispatch(loadUser());
-                toast.success("avatar updated successfully!");
+                toast.success("Avatar updated successfully!");
             })
             .catch((error) => {
                 toast.error(error);
             });
     };
 
-
     return (
         <div className='w-full'>
-            {/* Profile */}
+            {/* Profile Information */}
             {
                 active === 1 && (
                     <>
@@ -162,7 +158,7 @@ const ProfileContent = ({ active }) => {
                 )
             }
 
-            {/* Odder  */}
+            {/* Orders */}
             {
                 active === 2 && (
                     <div>
@@ -171,7 +167,7 @@ const ProfileContent = ({ active }) => {
                 )
             }
 
-            {/* Refund order */}
+            {/* Refund Order */}
             {
                 active === 3 && (
                     <div>
@@ -180,7 +176,7 @@ const ProfileContent = ({ active }) => {
                 )
             }
 
-            {/* Track order */}
+            {/* Track Order */}
             {active === 5 && (
                 <div>
                     <TrackOrder />
@@ -194,10 +190,17 @@ const ProfileContent = ({ active }) => {
                 </div>
             )}
 
-            {/* user Address */}
+            {/* User Address */}
             {active === 7 && (
                 <div>
                     <Address />
+                </div>
+            )}
+
+            {/* Payment PIN / Security Settings (New section, using active === 8) */}
+            {active === 8 && (
+                <div>
+                    <SecuritySettings />
                 </div>
             )}
 
@@ -205,7 +208,7 @@ const ProfileContent = ({ active }) => {
     )
 }
 
-// All orders
+// All orders component
 const AllOrders = () => {
     const { user } = useSelector((state) => state.user);
 
@@ -214,14 +217,10 @@ const AllOrders = () => {
 
     useEffect(() => {
         dispatch(getAllOrdersOfUser(user._id));
-    }, []);
-
-
-
+    }, [dispatch, user._id]); // Added dispatch and user._id to dependency array
 
     const columns = [
         { field: "id", headerName: "Order ID", minWidth: 150, flex: 0.7 },
-
         {
             field: "status",
             headerName: "Status",
@@ -240,7 +239,6 @@ const AllOrders = () => {
             minWidth: 130,
             flex: 0.7,
         },
-
         {
             field: "total",
             headerName: "Total",
@@ -248,7 +246,6 @@ const AllOrders = () => {
             minWidth: 130,
             flex: 0.8,
         },
-
         {
             field: " ",
             flex: 1,
@@ -282,7 +279,6 @@ const AllOrders = () => {
             });
         });
 
-
     return (
         <>
             <div className='pl-8 pt-1'>
@@ -293,14 +289,12 @@ const AllOrders = () => {
                     disableSelectionOnClick
                     autoHeight
                 />
-
             </div>
         </>
     )
 }
 
-// Refund page
-
+// Refund orders page
 const AllRefundOrders = () => {
     const { user } = useSelector((state) => state.user);
     const { orders } = useSelector((state) => state.order);
@@ -308,14 +302,12 @@ const AllRefundOrders = () => {
 
     useEffect(() => {
         dispatch(getAllOrdersOfUser(user._id));
-    }, []);
-
+    }, [dispatch, user._id]); // Added dispatch and user._id to dependency array
 
     const eligibleOrders = orders && orders.filter((item) => item.status === "Processing refund");
 
     const columns = [
         { field: "id", headerName: "Order ID", minWidth: 150, flex: 0.7 },
-
         {
             field: "status",
             headerName: "Status",
@@ -334,7 +326,6 @@ const AllRefundOrders = () => {
             minWidth: 130,
             flex: 0.7,
         },
-
         {
             field: "total",
             headerName: "Total",
@@ -342,7 +333,6 @@ const AllRefundOrders = () => {
             minWidth: 130,
             flex: 0.8,
         },
-
         {
             field: " ",
             flex: 1,
@@ -390,22 +380,18 @@ const AllRefundOrders = () => {
 };
 
 
-// Track order
+// Track order component
 const TrackOrder = () => {
-
     const { user } = useSelector((state) => state.user);
     const { orders } = useSelector((state) => state.order);
     const dispatch = useDispatch();
 
     useEffect(() => {
         dispatch(getAllOrdersOfUser(user._id));
-    }, []);
-
-
+    }, [dispatch, user._id]); // Added dispatch and user._id to dependency array
 
     const columns = [
         { field: "id", headerName: "Order ID", minWidth: 150, flex: 0.7 },
-
         {
             field: "status",
             headerName: "Status",
@@ -424,7 +410,6 @@ const TrackOrder = () => {
             minWidth: 130,
             flex: 0.7,
         },
-
         {
             field: "total",
             headerName: "Total",
@@ -432,7 +417,6 @@ const TrackOrder = () => {
             minWidth: 130,
             flex: 0.8,
         },
-
         {
             field: " ",
             flex: 1,
@@ -480,10 +464,8 @@ const TrackOrder = () => {
 }
 
 
-// Payment method
-
+// Change Password component
 const ChangePassword = () => {
-
     const [oldPassword, setOldPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -498,7 +480,7 @@ const ChangePassword = () => {
                 { withCredentials: true }
             )
             .then((res) => {
-                toast.success("Pawword is updated");
+                toast.success("Password is updated");
                 setOldPassword("");
                 setNewPassword("");
                 setConfirmPassword("");
@@ -558,20 +540,13 @@ const ChangePassword = () => {
                         />
                     </div>
                 </form>
-
             </div>
-
-
-
-
         </div>
-
     )
 }
 
-// Address
+// Address component
 const Address = () => {
-
     const [open, setOpen] = useState(false);
     const [country, setCountry] = useState("");
     const [city, setCity] = useState("");
@@ -582,17 +557,10 @@ const Address = () => {
     const { user } = useSelector((state) => state.user);
     const dispatch = useDispatch();
 
-
     const addressTypeData = [
-        {
-            name: "Default",
-        },
-        {
-            name: "Home",
-        },
-        {
-            name: "Office",
-        },
+        { name: "Default" },
+        { name: "Home" },
+        { name: "Office" },
     ];
 
     const handleSubmit = async (e) => {
@@ -601,7 +569,7 @@ const Address = () => {
         if (addressType === "" || country === "" || city === "") {
             toast.error("Please fill all the fields!");
         } else {
-            // hear use redex
+            // Use Redux dispatch for updating address
             dispatch(
                 updatUserAddress(
                     country,
@@ -629,7 +597,6 @@ const Address = () => {
 
     return (
         <div className='w-full px-5'>
-
             {
                 open && (
                     <div className="fixed w-full h-screen bg-[#0000004b] top-0 left-0 flex items-center justify-center ">
@@ -657,9 +624,9 @@ const Address = () => {
                                                 className="w-[95%] border h-[40px] rounded-[5px]"
                                             >
                                                 <option value=""
-                                                    className='bloc border pb-2'
+                                                    className='block border pb-2'
                                                 >
-                                                    Choose your contry
+                                                    Choose your country
                                                 </option>
                                                 {
                                                     Country &&
@@ -686,7 +653,7 @@ const Address = () => {
                                                 className="w-[95%] border h-[40px] rounded-[5px]"
                                             >
                                                 <option value="" className="block border pb-2">
-                                                    choose your city
+                                                    Choose your city
                                                 </option>
                                                 {State &&
                                                     State.getStatesOfCountry(country).map((item) => (
@@ -740,12 +707,12 @@ const Address = () => {
                                             <select name="" id=""
                                                 value={addressType}
                                                 onChange={(e) => setAddressType(e.target.value)}
-                                                className='w-[95%] border h-[40px]  rounded-[5px]'
+                                                className='w-[95%] border h-[40px] rounded-[5px]'
                                             >
                                                 <option value=""
                                                     className='block border pb-2'
                                                 >
-                                                    Choose Yoour Address Type
+                                                    Choose Your Address Type
                                                 </option>
                                                 {
                                                     addressTypeData &&
@@ -772,13 +739,10 @@ const Address = () => {
 
                                     </div>
                                 </form>
-
                             </div>
                         </div>
-
                     </div>
                 )
-
             }
 
             <div className='flex w-full items-center justify-between' >
@@ -791,7 +755,6 @@ const Address = () => {
                     onClick={() => setOpen(true)}
                 >
                     <span className='text-[#fff]'>Add New</span>
-
                 </div>
             </div>
             <br />
@@ -828,13 +791,11 @@ const Address = () => {
             {
                 user && user.addresses.length === 0 && (
                     <h5 className="text-center pt-8 text-[18px]">
-                        You not have any saved address!
+                        You don't have any saved addresses!
                     </h5>
                 )}
         </div>
     )
-
 }
-
 
 export default ProfileContent
