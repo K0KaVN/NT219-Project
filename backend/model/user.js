@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -53,18 +54,27 @@ const userSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now(),
-  },
+    },
+    // --- New field for Payment PIN ---
+    paymentPin: {
+        type: String,
+        select: false, // Crucial: Do not return paymentPin by default
+        default: null, // Allow it to be null initially
+    },
   resetPasswordToken: String,
   resetPasswordTime: Date,
 });
 
 //  Hash password
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) {
+    if (this.isModified("password")) {
+        this.password = await bcrypt.hash(this.password, 10);
+    }
+    // Hash paymentPin only if it's modified and not null
+    if (this.isModified("paymentPin") && this.paymentPin) {
+        this.paymentPin = await bcrypt.hash(this.paymentPin, 10);
+    }
     next();
-  }
-
-  this.password = await bcrypt.hash(this.password, 10);
 });
 
 // jwt token
@@ -77,6 +87,16 @@ userSchema.methods.getJwtToken = function () {
 // compare password
 userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// --- New method to compare payment PIN ---
+userSchema.methods.comparePaymentPin = async function (enteredPin) {
+    // Ensure that the paymentPin field is selected when querying the user if needed
+    // For example: User.findById(userId).select('+paymentPin')
+    if (!this.paymentPin) {
+        return false; // No PIN set
+    }
+    return await bcrypt.compare(enteredPin, this.paymentPin);
 };
 
 module.exports = mongoose.model("User", userSchema);
