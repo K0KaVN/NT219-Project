@@ -13,7 +13,7 @@ const Checkout = () => {
     const { cart } = useSelector((state) => state.cart);
     const [country, setCountry] = useState("");
     const [city, setCity] = useState("");
-    const [userInfo, setUserInfo] = useState(false);
+    const [userInfo, setUserInfo] = useState(false); // State to toggle saved address display
     const [address1, setAddress1] = useState("");
     const [address2, setAddress2] = useState("");
     const [zipCode, setZipCode] = useState(null);
@@ -23,7 +23,7 @@ const Checkout = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        window.scrollTo(0, 0);
+        window.scrollTo(0, 0); // Scroll to top on component mount
     }, []);
 
     const paymentSubmit = () => {
@@ -45,12 +45,12 @@ const Checkout = () => {
                 shipping,
                 discountPrice,
                 shippingAddress,
-                user,
+                user: { _id: user._id }, // Ensure only user._id is sent if the backend schema expects it as a string within an object
             }
 
-            // update local storage with the updated orders array
+            // Update local storage with the order data before navigating to payment
             localStorage.setItem("latestOrder", JSON.stringify(orderData));
-            navigate("/payment");
+            navigate("/payment"); // Navigate to the payment page where PIN verification will occur
         }
     };
 
@@ -59,17 +59,15 @@ const Checkout = () => {
         0
     );
 
-    // this is shipping cost variable
-    const shipping = subTotalPrice * 0.1; // 10%
+    // This is shipping cost variable (10% of subtotal)
+    const shipping = subTotalPrice * 0.1;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const name = couponCode;
+        const name = couponCode; // Assuming couponCode is the name to query
 
         await axios.get(`${server}/coupon/get-coupon-value/${name}`).then((res) => {
-
             const shopId = res.data.couponCode?.shopId;
-
             const couponCodeValue = res.data.couponCode?.value;
 
             if (res.data.couponCode !== null) {
@@ -80,7 +78,6 @@ const Checkout = () => {
                     toast.error("Coupon code is not valid for this shop");
                     setCouponCode("");
                 } else {
-
                     const eligiblePrice = isCouponValid.reduce(
                         (acc, item) => acc + item.qty * item.discountPrice,
                         0
@@ -90,21 +87,21 @@ const Checkout = () => {
                     setCouponCodeData(res.data.couponCode);
                     setCouponCode("");
                 }
-            }
-            if (res.data.couponCode === null) {
-                toast.error("Coupon code doesn't exists!");
+            } else { // Handle case where coupon code doesn't exist
+                toast.error("Coupon code doesn't exist!");
                 setCouponCode("");
             }
+        }).catch((error) => {
+            toast.error(error.response?.data?.message || "Error applying coupon.");
+            setCouponCode("");
         });
     };
 
-    const discountPercentenge = couponCodeData ? discountPrice : "";
+    const discountPercentenge = couponCodeData ? discountPrice : 0; // Ensure it's a number for calculations
 
-    const totalPrice = couponCodeData
-        ? (subTotalPrice + shipping - discountPercentenge).toFixed(2)
-        : (subTotalPrice + shipping).toFixed(2);
+    const totalPrice = (subTotalPrice + shipping - discountPercentenge).toFixed(2); // Final total price
 
-    console.log(discountPercentenge);
+    // console.log(discountPercentenge); // Removed console.log
 
     return (
         <div className="w-full flex flex-col items-center py-8">
@@ -173,18 +170,20 @@ const ShippingInfo = ({
                         <label className="block pb-2">Full Name</label>
                         <input
                             type="text"
-                            value={user && user.name}
+                            value={user ? user.name : ""} // Handle null user
                             required
                             className={`${styles.input} !w-[95%]`}
+                            readOnly // Assuming user name is not editable here
                         />
                     </div>
                     <div className="w-[50%]">
                         <label className="block pb-2">Email Address</label>
                         <input
                             type="email"
-                            value={user && user.email}
+                            value={user ? user.email : ""} // Handle null user
                             required
                             className={`${styles.input}`}
+                            readOnly // Assuming user email is not editable here
                         />
                     </div>
                 </div>
@@ -195,15 +194,16 @@ const ShippingInfo = ({
                         <input
                             type="number"
                             required
-                            value={user && user.phoneNumber}
+                            value={user ? user.phoneNumber : ""} // Handle null user
                             className={`${styles.input} !w-[95%]`}
+                            readOnly // Assuming user phone number is not editable here
                         />
                     </div>
                     <div className="w-[50%]">
                         <label className="block pb-2">Zip Code</label>
                         <input
                             type="number"
-                            value={zipCode}
+                            value={zipCode || ""} // Handle null zipCode for input display
                             onChange={(e) => setZipCode(e.target.value)}
                             required
                             className={`${styles.input}`}
@@ -242,7 +242,7 @@ const ShippingInfo = ({
                             </option>
                             {State &&
                                 State.getStatesOfCountry(country).map((item) => (
-                                    <option key={item.isoCode} value={item.isoCode}>
+                                    <option key={item.isoCode} value={item.name}> {/* Changed value to item.name for city */}
                                         {item.name}
                                     </option>
                                 ))}
@@ -273,7 +273,7 @@ const ShippingInfo = ({
                     </div>
                 </div>
 
-                <div></div>
+                <div></div> {/* Empty div, possibly for layout spacing */}
             </form>
             <h5
                 className="text-[18px] cursor-pointer inline-block"
@@ -285,11 +285,12 @@ const ShippingInfo = ({
                 <div>
                     {user &&
                         user.addresses.map((item, index) => (
-                            <div className="w-full flex mt-1">
+                            <div className="w-full flex mt-1" key={index}>
                                 <input
                                     type="checkbox"
                                     className="mr-3"
                                     value={item.addressType}
+                                    // Set all address fields when a saved address is selected
                                     onClick={() =>
                                         setAddress1(item.address1) ||
                                         setAddress2(item.address2) ||
@@ -319,19 +320,19 @@ const CartData = ({
     return (
         <div className="w-full bg-[#fff] rounded-md p-5 pb-8">
             <div className="flex justify-between">
-                <h3 className="text-[16px] font-[400] text-[#000000a4]">subtotal:</h3>
-                <h5 className="text-[18px] font-[600]">${subTotalPrice}</h5>
+                <h3 className="text-[16px] font-[400] text-[#000000a4]">Subtotal:</h3>
+                <h5 className="text-[18px] font-[600]">${subTotalPrice.toFixed(2)}</h5> {/* Ensure price is formatted */}
             </div>
             <br />
             <div className="flex justify-between">
-                <h3 className="text-[16px] font-[400] text-[#000000a4]">shipping:</h3>
+                <h3 className="text-[16px] font-[400] text-[#000000a4]">Shipping:</h3>
                 <h5 className="text-[18px] font-[600]">${shipping.toFixed(2)}</h5>
             </div>
             <br />
             <div className="flex justify-between border-b pb-3">
                 <h3 className="text-[16px] font-[400] text-[#000000a4]">Discount:</h3>
                 <h5 className="text-[18px] font-[600]">
-                    - {discountPercentenge ? "$" + discountPercentenge.toString() : null}
+                    - {discountPercentenge ? "$" + discountPercentenge.toFixed(2) : "$0.00"} {/* Format discount */}
                 </h5>
             </div>
             <h5 className="text-[18px] font-[600] text-end pt-3">${totalPrice}</h5>
@@ -340,7 +341,7 @@ const CartData = ({
                 <input
                     type="text"
                     className={`${styles.input} h-[40px] pl-2`}
-                    placeholder="Coupoun code"
+                    placeholder="Coupon code"
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
                     required

@@ -3,6 +3,7 @@ import Header from '../components/Layout/Header'
 import styles from "../styles/styles";
 import ProfileSideBar from "../components/Profile/ProfileSidebar";
 import ProfileContent from "../components/Profile/ProfileContent";
+import SecuritySettings from '../components/Profile/SecuritySettings';
 
 
 const ProfilePage = () => {

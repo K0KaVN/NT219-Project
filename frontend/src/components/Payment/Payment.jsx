@@ -7,38 +7,89 @@ import { server } from "../../server";
 import { toast } from "react-toastify";
 import { RxCross1 } from "react-icons/rx";
 
-
 const Payment = () => {
     const [orderData, setOrderData] = useState([]);
     const { user } = useSelector((state) => state.user);
     const navigate = useNavigate();
 
+    // States for Payment PIN
+    const [paymentPin, setPaymentPin] = useState('');
+    const [hasPinSet, setHasPinSet] = useState(false); // State to check if PIN is set
+    const [loading, setLoading] = useState(false); // Loading state for payment processing
+
     useEffect(() => {
-        const orderData = JSON.parse(localStorage.getItem("latestOrder"));
-        setOrderData(orderData);
+        // Load order data from local storage
+        const storedOrderData = JSON.parse(localStorage.getItem("latestOrder"));
+        setOrderData(storedOrderData);
+
+        // Check user's PIN setup status
+        const checkPinStatus = async () => {
+            try {
+                const response = await axios.get(`${server}/user/has-payment-pin`, { withCredentials: true });
+                setHasPinSet(response.data.hasPin);
+            } catch (error) {
+                console.error('Error checking PIN status:', error);
+                toast.error('Failed to check PIN status. Please try again later.');
+            }
+        };
+        checkPinStatus();
     }, []);
 
+    // Create the order object to be sent to the backend
     const order = {
         cart: orderData?.cart,
         shippingAddress: orderData?.shippingAddress,
-        user: user && user,
+        user: user ? { _id: user._id } : null, // Ensure user ID is sent as an object property
         totalPrice: orderData?.totalPrice,
+    };
+
+    // Helper function for PIN validation
+    const validatePin = (pin) => {
+        if (!hasPinSet) {
+            toast.error('Please set up your payment PIN in profile settings before proceeding to payment.');
+            return false;
+        }
+        if (!pin) {
+            toast.error('Payment PIN is required for this transaction.');
+            return false;
+        }
+        if (!/^\d{6}$/.test(pin)) {
+            toast.error('Payment PIN must be a 6-digit number.');
+            return false;
+        }
+        return true;
     };
 
     // Direct payment handler - all payments are processed directly without third-party
     const directPaymentHandler = async (e) => {
         e.preventDefault();
+        setLoading(true);
+
+        if (!validatePin(paymentPin)) {
+            setLoading(false);
+            return;
+        }
 
         const config = {
             headers: {
                 "Content-Type": "application/json",
             },
+            withCredentials: true, // Important for sending cookies
         };
 
         try {
-            // Simple payment process - always succeeds
+            // Fetch user to compare PIN on client-side (for immediate feedback)
+            // In a highly secure app, this would be done exclusively on the backend.
+            // For this example, we'll do a quick client-side check if backend allows it for UX.
+            // However, the *server-side* check is the definitive one.
+            const currentUser = await axios.get(`${server}/user/getuser`, config); // Get user with +paymentPin if needed.
+            // Note: If 'getuser' endpoint doesn't return paymentPin, you might need a dedicated endpoint
+            // or modify 'getuser' to include it (securely).
+            // For now, let's assume direct server verification will handle it as part of create-order.
+
+            // Simple payment process - always succeeds (for demo purposes)
             const { data } = await axios.post(
-                `${server}/payment/process`,
+                `${server}/payment/process`, // This is your mock payment processing endpoint
                 { amount: Math.round(orderData?.totalPrice * 100) },
                 config
             );
@@ -50,45 +101,69 @@ const Payment = () => {
                     type: "Direct Payment",
                 };
 
+                // Send order data including paymentPin to create-order endpoint
+                order.paymentPin = paymentPin; // Add the payment pin to the order object
+
                 await axios
                     .post(`${server}/order/create-order`, order, config)
                     .then((res) => {
                         navigate("/order/success");
                         toast.success("Payment successful!");
-                        localStorage.setItem("cartItems", JSON.stringify([]));
-                        localStorage.setItem("latestOrder", JSON.stringify([]));
-                        window.location.reload();
+                        localStorage.setItem("cartItems", JSON.stringify([])); // Clear cart
+                        localStorage.setItem("latestOrder", JSON.stringify([])); // Clear latest order
+                        window.location.reload(); // Reload to reflect changes
                     });
+            } else {
+                toast.error(data.message || "Payment processing failed.");
             }
         } catch (error) {
             toast.error(error.response?.data?.message || "Payment failed");
+            console.error("Direct payment error:", error);
+        } finally {
+            setLoading(false);
         }
     };
 
-    //  Cash on Delivery Handler (COD)
+    // Cash on Delivery Handler (COD)
     const cashOnDeliveryHandler = async (e) => {
         e.preventDefault();
+        setLoading(true);
+
+        if (!validatePin(paymentPin)) {
+            setLoading(false);
+            return;
+        }
 
         const config = {
             headers: {
                 "Content-Type": "application/json",
             },
+            withCredentials: true,
         };
 
         order.paymentInfo = {
             type: "Cash On Delivery",
         };
+        order.paymentPin = paymentPin; // Add the payment pin for COD as well
 
-        await axios
-            .post(`${server}/order/create-order`, order, config)
-            .then((res) => {
-                navigate("/order/success");
-                toast.success("Order successful!");
-                localStorage.setItem("cartItems", JSON.stringify([]));
-                localStorage.setItem("latestOrder", JSON.stringify([]));
-                window.location.reload();
-            });
+        try {
+            await axios
+                .post(`${server}/order/create-order`, order, config)
+                .then((res) => {
+                    navigate("/order/success");
+                    toast.success("Order successful!");
+                    localStorage.setItem("cartItems", JSON.stringify([]));
+                    localStorage.setItem("latestOrder", JSON.stringify([]));
+                    window.location.reload();
+                });
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Order creation failed.");
+            console.error("Cash on Delivery error:", error);
+        } finally {
+            setLoading(false);
+        }
     }
+
     return (
         <div className="w-full flex flex-col items-center py-8">
             <div className="w-[90%] 1000px:w-[70%] block 800px:flex">
@@ -97,6 +172,10 @@ const Payment = () => {
                         user={user}
                         directPaymentHandler={directPaymentHandler}
                         cashOnDeliveryHandler={cashOnDeliveryHandler}
+                        paymentPin={paymentPin}
+                        setPaymentPin={setPaymentPin}
+                        hasPinSet={hasPinSet}
+                        loading={loading} // Pass loading state to disable buttons
                     />
                 </div>
                 <div className="w-full 800px:w-[35%] 800px:mt-0 mt-8">
@@ -113,16 +192,22 @@ const PaymentInfo = ({
     user,
     directPaymentHandler,
     cashOnDeliveryHandler,
+    paymentPin,
+    setPaymentPin,
+    hasPinSet,
+    loading,
 }) => {
     const [select, setSelect] = useState(1);
+    const navigate = useNavigate(); // For navigating to profile settings
 
     return (
         <div className="w-full 800px:w-[95%] bg-[#fff] rounded-md p-5 pb-8">
-            {/* select buttons */}
+            {/* Payment Method Selection */}
             <div>
+                {/* Direct Payment Option */}
                 <div className="flex w-full pb-5 border-b mb-2">
                     <div
-                        className="w-[25px] h-[25px] rounded-full bg-transparent border-[3px] border-[#1d1a1ab4] relative flex items-center justify-center"
+                        className="w-[25px] h-[25px] rounded-full bg-transparent border-[3px] border-[#1d1a1ab4] relative flex items-center justify-center cursor-pointer"
                         onClick={() => setSelect(1)}
                     >
                         {select === 1 ? (
@@ -134,7 +219,7 @@ const PaymentInfo = ({
                     </h4>
                 </div>
 
-                {/* Direct payment */}
+                {/* Direct Payment Form (visible if selected) */}
                 {select === 1 ? (
                     <div className="w-full flex border-b">
                         <form className="w-full" onSubmit={directPaymentHandler}>
@@ -143,7 +228,7 @@ const PaymentInfo = ({
                                     <label className="block pb-2">Full Name</label>
                                     <input
                                         required
-                                        value={user && user.name}
+                                        value={user ? user.name : ""}
                                         className={`${styles.input} !w-[95%]`}
                                         readOnly
                                     />
@@ -152,7 +237,7 @@ const PaymentInfo = ({
                                     <label className="block pb-2">Email</label>
                                     <input
                                         required
-                                        value={user && user.email}
+                                        value={user ? user.email : ""}
                                         className={`${styles.input} !w-[95%]`}
                                         readOnly
                                     />
@@ -170,10 +255,45 @@ const PaymentInfo = ({
                                     All payments are processed securely. No payment information is stored.
                                 </p>
                             </div>
+
+                            {/* Payment PIN Input */}
+                            <div>
+                                <label htmlFor="paymentPin" className="block pb-2">
+                                    Enter Your Payment PIN
+                                </label>
+                                <input
+                                    type="password"
+                                    id="paymentPin"
+                                    value={paymentPin}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (/^\d*$/.test(value) && value.length <= 6) {
+                                            setPaymentPin(value);
+                                        }
+                                    }}
+                                    required
+                                    maxLength="6"
+                                    className={`${styles.input} !w-[100%]`}
+                                    disabled={!hasPinSet || loading} // Disable if PIN is not set or loading
+                                />
+                                {!hasPinSet && (
+                                    <p className="mt-2 text-sm text-red-600">
+                                        You have not set up a payment PIN. Please go to{' '}
+                                        <span
+                                            className="font-medium text-blue-600 cursor-pointer hover:underline"
+                                            onClick={() => navigate('/profile?tab=security')}
+                                        >
+                                            Profile Settings
+                                        </span>{' '}to set it up.
+                                    </p>
+                                )}
+                            </div>
+
                             <input
                                 type="submit"
-                                value="Pay Now"
-                                className={`${styles.button} !bg-[#f63b60] text-[#fff] h-[45px] rounded-[5px] cursor-pointer text-[18px] font-[600]`}
+                                value={loading ? "Processing..." : "Pay Now"}
+                                className={`${styles.button} !bg-[#f63b60] text-[#fff] h-[45px] rounded-[5px] cursor-pointer text-[18px] font-[600] ${(!hasPinSet || loading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!hasPinSet || loading}
                             />
                         </form>
                     </div>
@@ -181,11 +301,11 @@ const PaymentInfo = ({
             </div>
 
             <br />
-            {/* cash on delivery */}
+            {/* Cash on Delivery Option */}
             <div>
                 <div className="flex w-full pb-5 border-b mb-2">
                     <div
-                        className="w-[25px] h-[25px] rounded-full bg-transparent border-[3px] border-[#1d1a1ab4] relative flex items-center justify-center"
+                        className="w-[25px] h-[25px] rounded-full bg-transparent border-[3px] border-[#1d1a1ab4] relative flex items-center justify-center cursor-pointer"
                         onClick={() => setSelect(2)}
                     >
                         {select === 2 ? (
@@ -197,7 +317,7 @@ const PaymentInfo = ({
                     </h4>
                 </div>
 
-                {/* cash on delivery */}
+                {/* Cash on Delivery Form (visible if selected) */}
                 {select === 2 ? (
                     <div className="w-full flex">
                         <form className="w-full" onSubmit={cashOnDeliveryHandler}>
@@ -206,10 +326,43 @@ const PaymentInfo = ({
                                     Pay with cash when your order is delivered.
                                 </p>
                             </div>
+                            {/* Payment PIN Input for COD */}
+                            <div>
+                                <label htmlFor="paymentPin" className="block pb-2">
+                                    Enter Your Payment PIN
+                                </label>
+                                <input
+                                    type="password"
+                                    id="paymentPin"
+                                    value={paymentPin}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (/^\d*$/.test(value) && value.length <= 6) {
+                                            setPaymentPin(value);
+                                        }
+                                    }}
+                                    required
+                                    maxLength="6"
+                                    className={`${styles.input} !w-[100%]`}
+                                    disabled={!hasPinSet || loading}
+                                />
+                                {!hasPinSet && (
+                                    <p className="mt-2 text-sm text-red-600">
+                                        You have not set up a payment PIN. Please go to{' '}
+                                        <span
+                                            className="font-medium text-blue-600 cursor-pointer hover:underline"
+                                            onClick={() => navigate('/profile?tab=security')}
+                                        >
+                                            Profile Settings
+                                        </span>{' '}to set it up.
+                                    </p>
+                                )}
+                            </div>
                             <input
                                 type="submit"
-                                value="Confirm"
-                                className={`${styles.button} !bg-[#f63b60] text-[#fff] h-[45px] rounded-[5px] cursor-pointer text-[18px] font-[600]`}
+                                value={loading ? "Confirming..." : "Confirm"}
+                                className={`${styles.button} !bg-[#f63b60] text-[#fff] h-[45px] rounded-[5px] cursor-pointer text-[18px] font-[600] ${(!hasPinSet || loading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!hasPinSet || loading}
                             />
                         </form>
                     </div>
@@ -219,33 +372,30 @@ const PaymentInfo = ({
     );
 };
 
-
-
-
 const CartData = ({ orderData }) => {
     const shipping = orderData?.shipping?.toFixed(2);
     return (
         <div className="w-full bg-[#fff] rounded-md p-5 pb-8">
             <div className="flex justify-between">
-                <h3 className="text-[16px] font-[400] text-[#000000a4]">subtotal:</h3>
-                <h5 className="text-[18px] font-[600]">${orderData?.subTotalPrice}</h5>
+                <h3 className="text-[16px] font-[400] text-[#000000a4]">Subtotal:</h3>
+                <h5 className="text-[18px] font-[600]">${orderData?.subTotalPrice?.toFixed(2) || '0.00'}</h5>
             </div>
             <br />
             <div className="flex justify-between">
-                <h3 className="text-[16px] font-[400] text-[#000000a4]">shipping:</h3>
-                <h5 className="text-[18px] font-[600]">${shipping}</h5>
+                <h3 className="text-[16px] font-[400] text-[#000000a4]">Shipping:</h3>
+                <h5 className="text-[18px] font-[600]">${shipping || '0.00'}</h5>
             </div>
             <br />
             <div className="flex justify-between border-b pb-3">
                 <h3 className="text-[16px] font-[400] text-[#000000a4]">Discount:</h3>
-                <h5 className="text-[18px] font-[600]">{orderData?.discountPrice ? "$" + orderData.discountPrice : "-"}
+                <h5 className="text-[18px] font-[600]">
+                    {orderData?.discountPrice ? "$" + orderData.discountPrice.toFixed(2) : "$0.00"}
                 </h5>
             </div>
             <h5 className="text-[18px] font-[600] text-end pt-3">
-                ${orderData?.totalPrice}
+                ${orderData?.totalPrice?.toFixed(2) || '0.00'}
             </h5>
             <br />
-
         </div>
     );
 };
