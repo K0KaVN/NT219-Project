@@ -34,8 +34,8 @@ app.use(
   })
 );
 
-// Serve static files from the 'uploads' directory
-app.use("/", express.static("uploads"));
+// Serve static files from the 'uploads' directory under /uploads path
+app.use("/uploads", express.static("uploads"));
 
 // Parse URL-encoded bodies (for form data) with a generous limit
 app.use(bodyParser.urlencoded({ extended: true, limit: "50mb" }));

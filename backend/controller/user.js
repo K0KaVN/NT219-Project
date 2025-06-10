@@ -89,8 +89,8 @@ router.post("/create-user", async (req, res, next) => {
       return next(new ErrorHandler("User already exists", 400));
     }
 
-    // Use DefaultAvatar.jpeg instead of uploaded file
-    const defaultAvatar = "DefaultAvatar.jpeg";
+    // Use DefaultAvatar.jpeg with uploads path instead of uploaded file
+    const defaultAvatar = "/uploads/DefaultAvatar.jpeg";
 
     const user = {
       name: name,
@@ -441,8 +441,16 @@ router.put(
       const existsUser = await User.findById(req.user.id);
 
       // If avatar is not DefaultAvatar, delete the previous image
-      if (existsUser.avatar !== "DefaultAvatar.jpeg") {
+      if (existsUser.avatar !== "/uploads/DefaultAvatar.jpeg" && !existsUser.avatar.startsWith("/uploads/")) {
         const existAvatarPath = `uploads/${existsUser.avatar}`;
+        try {
+          fs.unlinkSync(existAvatarPath); // Delete previous image
+        } catch (err) {
+          console.log("Error deleting previous avatar:", err);
+          // Continue execution even if file deletion fails
+        }
+      } else if (existsUser.avatar.startsWith("/uploads/") && existsUser.avatar !== "/uploads/DefaultAvatar.jpeg") {
+        const existAvatarPath = existsUser.avatar.replace("/uploads/", "uploads/");
         try {
           fs.unlinkSync(existAvatarPath); // Delete previous image
         } catch (err) {
@@ -451,7 +459,7 @@ router.put(
         }
       }
 
-      const fileUrl = path.join(req.file.filename); // new image
+      const fileUrl = `/uploads/${req.file.filename}`; // new image with uploads path
 
       /* The code updates the avatar field of the user with the specified `req.user.id`. */
       const user = await User.findByIdAndUpdate(req.user.id, {
