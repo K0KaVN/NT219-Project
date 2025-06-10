@@ -66,6 +66,12 @@ const Payment = () => {
             setGeneratingKeys(true);
             try {
                 const keyPair = await mldsaHandler.generateKeyPair();
+                console.log('Generated ML-DSA key pair:', {
+                    hasPublicKey: !!keyPair.publicKey,
+                    hasPrivateKey: !!keyPair.privateKey,
+                    publicKeyLength: keyPair.publicKey ? keyPair.publicKey.length : 0,
+                    privateKeyLength: keyPair.privateKey ? keyPair.privateKey.length : 0
+                });
                 setMldsaKeyPair(keyPair);
                 console.log('ML-DSA key pair generated successfully');
             } catch (error) {
@@ -110,6 +116,11 @@ const Payment = () => {
         try {
             // Sign the order data
             const signature = await mldsaHandler.signOrderData(orderObj, mldsaKeyPair.privateKey);
+            
+            console.log('Generated signature:', signature ? signature.substring(0, 50) + '...' : 'null');
+            console.log('Public key:', mldsaKeyPair.publicKey ? mldsaKeyPair.publicKey.substring(0, 50) + '...' : 'null');
+            console.log('Signature length:', signature ? signature.length : 'null');
+            console.log('Public key length:', mldsaKeyPair.publicKey ? mldsaKeyPair.publicKey.length : 'null');
             
             // Add ML-DSA fields to order
             orderObj.mlDsaSignature = signature;
@@ -308,7 +319,7 @@ const Payment = () => {
                 <div className="w-[90%] 1000px:w-[70%] block 800px:flex">
                     <div className="w-full 800px:w-[65%]">
                         {/* ML-DSA Key Generation Status */}
-                        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                        <div className="mb-6 p-20 bg-blue-50 border border-blue-200 rounded-md">
                             <h3 className="text-lg font-semibold text-blue-900 mb-2">
                                 🔐 Cryptographic Security Status
                             </h3>
@@ -419,9 +430,6 @@ const PaymentInfo = ({
                                     className={`${styles.input} !w-[100%]`}
                                     readOnly
                                 />
-                                <p className="text-[12px] text-[#00000080] mt-1">
-                                    All payments are processed securely. No payment information is stored.
-                                </p>
                             </div>
 
                             {/* Payment PIN Input */}

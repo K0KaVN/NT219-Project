@@ -63,6 +63,7 @@ const coupon = require("./controller/coupounCode");
 const payment = require("./controller/payment");
 const order = require("./controller/order");
 const withdraw = require("./controller/withdraw");
+const debug = require("./controller/debug");
 
 // Mount routes at their respective base paths
 app.use("/api/v2/user", user);
@@ -72,6 +73,7 @@ app.use("/api/v2/product", product);
 app.use("/api/v2/coupon", coupon);
 app.use("/api/v2/payment", payment);
 app.use("/api/v2/withdraw", withdraw);
+app.use("/api/v2/debug", debug);
 
 // Handle React routing - catch all handler for SPA
 app.get("*", (req, res) => {

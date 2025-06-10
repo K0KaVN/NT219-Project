@@ -91,16 +91,37 @@ router.post(
                 return next(new ErrorHandler("ML-DSA signature, public key, and algorithm are required.", 400));
             }
 
-            // Convert hex strings to Buffers if they're strings
+            // Convert base64 strings to Buffers if they're strings
             let signatureBuffer = mlDsaSignature;
             let publicKeyBuffer = mlDsaPublicKey;
 
             if (typeof mlDsaSignature === 'string') {
-                signatureBuffer = Buffer.from(mlDsaSignature, 'hex');
+                try {
+                    // Try base64 decoding first (frontend sends base64)
+                    signatureBuffer = Buffer.from(mlDsaSignature, 'base64');
+                } catch (error) {
+                    // Fallback to hex if base64 fails
+                    signatureBuffer = Buffer.from(mlDsaSignature, 'hex');
+                }
             }
             if (typeof mlDsaPublicKey === 'string') {
-                publicKeyBuffer = Buffer.from(mlDsaPublicKey, 'hex');
+                try {
+                    // Try base64 decoding first (frontend sends base64)
+                    publicKeyBuffer = Buffer.from(mlDsaPublicKey, 'base64');
+                } catch (error) {
+                    // Fallback to hex if base64 fails
+                    publicKeyBuffer = Buffer.from(mlDsaPublicKey, 'hex');
+                }
             }
+
+            // Log buffer lengths for debugging
+            console.log('Original mlDsaSignature type:', typeof mlDsaSignature);
+            console.log('Original mlDsaPublicKey type:', typeof mlDsaPublicKey);
+            console.log('Original mlDsaSignature length:', mlDsaSignature ? mlDsaSignature.length : 'null/undefined');
+            console.log('Original mlDsaPublicKey length:', mlDsaPublicKey ? mlDsaPublicKey.length : 'null/undefined');
+            console.log('Signature buffer length:', signatureBuffer.length);
+            console.log('Public key buffer length:', publicKeyBuffer.length);
+            console.log('Expected algorithm:', mlDsaAlgorithm);
 
             // Prepare order data for verification (same as frontend signing)
             const orderDataForVerification = {
@@ -111,11 +132,17 @@ router.post(
             };
 
             // Verify the frontend-generated signature
-            const isSignatureValid = verifyOrderSignature(
-                orderDataForVerification,
-                signatureBuffer,
-                publicKeyBuffer
-            );
+            let isSignatureValid;
+            try {
+                isSignatureValid = verifyOrderSignature(
+                    orderDataForVerification,
+                    signatureBuffer,
+                    publicKeyBuffer
+                );
+            } catch (verificationError) {
+                console.error('Signature verification failed:', verificationError);
+                return next(new ErrorHandler(`Signature verification failed: ${verificationError.message}`, 400));
+            }
 
             if (!isSignatureValid) {
                 return next(new ErrorHandler("Invalid ML-DSA signature. Order cannot be processed.", 400));

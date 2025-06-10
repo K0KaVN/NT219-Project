@@ -48,15 +48,27 @@ router.post(
                 return next(new ErrorHandler("ML-DSA signature, public key, and algorithm are required.", 400));
             }
 
-            // Convert hex strings to Buffers if they're strings
+            // Convert base64 strings to Buffers if they're strings
             let signatureBuffer = mlDsaSignature;
             let publicKeyBuffer = mlDsaPublicKey;
 
             if (typeof mlDsaSignature === 'string') {
-                signatureBuffer = Buffer.from(mlDsaSignature, 'hex');
+                try {
+                    // Try base64 decoding first (frontend sends base64)
+                    signatureBuffer = Buffer.from(mlDsaSignature, 'base64');
+                } catch (error) {
+                    // Fallback to hex if base64 fails
+                    signatureBuffer = Buffer.from(mlDsaSignature, 'hex');
+                }
             }
             if (typeof mlDsaPublicKey === 'string') {
-                publicKeyBuffer = Buffer.from(mlDsaPublicKey, 'hex');
+                try {
+                    // Try base64 decoding first (frontend sends base64)
+                    publicKeyBuffer = Buffer.from(mlDsaPublicKey, 'base64');
+                } catch (error) {
+                    // Fallback to hex if base64 fails
+                    publicKeyBuffer = Buffer.from(mlDsaPublicKey, 'hex');
+                }
             }
 
             // Prepare order data for verification (same as frontend signing)
