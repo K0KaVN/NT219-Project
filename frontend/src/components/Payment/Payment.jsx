@@ -7,9 +7,13 @@ import { server } from "../../server";
 import { toast } from "react-toastify";
 
 const Payment = () => {
-    const [orderData, setOrderData] = useState([]);
+    console.log('Payment component is loading...');
+    const [orderData, setOrderData] = useState({}); // Changed from [] to {}
     const { user } = useSelector((state) => state.user);
     const navigate = useNavigate();
+    
+    console.log('User from Redux:', user);
+    console.log('OrderData:', orderData);
 
     // States for Payment PIN
     const [paymentPin, setPaymentPin] = useState('');
@@ -18,8 +22,46 @@ const Payment = () => {
 
     useEffect(() => {
         // Load order data from local storage
-        const storedOrderData = JSON.parse(localStorage.getItem("latestOrder"));
-        setOrderData(storedOrderData);
+        const storedOrderData = localStorage.getItem("latestOrder");
+        console.log('Stored order data from localStorage:', storedOrderData);
+        
+        if (storedOrderData) {
+            try {
+                const parsedData = JSON.parse(storedOrderData);
+                console.log('Parsed order data:', parsedData);
+                setOrderData(parsedData);
+            } catch (error) {
+                console.error('Error parsing order data:', error);
+                setOrderData({});
+            }
+        } else {
+            console.log('No order data in localStorage, setting default');
+            // Set default data for testing
+            const defaultOrderData = {
+                cart: [
+                    {
+                        _id: 'test-1',
+                        name: 'Test Product',
+                        qty: 1,
+                        discountPrice: 100,
+                        shopId: 'test-shop'
+                    }
+                ],
+                totalPrice: 110,
+                subTotalPrice: 100,
+                shipping: 10,
+                discountPrice: 0,
+                shippingAddress: {
+                    address1: 'Test Address 1',
+                    address2: 'Test Address 2',
+                    zipCode: '12345',
+                    country: 'VN',
+                    city: 'Ho Chi Minh'
+                }
+            };
+            setOrderData(defaultOrderData);
+            localStorage.setItem("latestOrder", JSON.stringify(defaultOrderData));
+        }
 
         // Check user's PIN setup status
         const checkPinStatus = async () => {
@@ -77,15 +119,6 @@ const Payment = () => {
         };
 
         try {
-            // Fetch user to compare PIN on client-side (for immediate feedback)
-            // In a highly secure app, this would be done exclusively on the backend.
-            // For this example, we'll do a quick client-side check if backend allows it for UX.
-            // However, the *server-side* check is the definitive one.
-            const currentUser = await axios.get(`${server}/user/getuser`, config); // Get user with +paymentPin if needed.
-            // Note: If 'getuser' endpoint doesn't return paymentPin, you might need a dedicated endpoint
-            // or modify 'getuser' to include it (securely).
-            // For now, let's assume direct server verification will handle it as part of create-order.
-
             // Simple payment process - always succeeds (for demo purposes)
             const { data } = await axios.post(
                 `${server}/payment/process`, // This is your mock payment processing endpoint

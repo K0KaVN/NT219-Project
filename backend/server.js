@@ -37,6 +37,9 @@ app.use(
 // Serve static files from the 'uploads' directory under /uploads path
 app.use("/uploads", express.static("uploads"));
 
+// Serve static files from React build
+app.use(express.static(path.join(__dirname, "../frontend/build")));
+
 // Parse URL-encoded bodies (for form data) with a generous limit
 app.use(bodyParser.urlencoded({ extended: true, limit: "50mb" }));
 
@@ -69,6 +72,11 @@ app.use("/api/v2/product", product);
 app.use("/api/v2/coupon", coupon);
 app.use("/api/v2/payment", payment);
 app.use("/api/v2/withdraw", withdraw);
+
+// Handle React routing - catch all handler for SPA
+app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/build", "index.html"));
+});
 
 // Error handling middleware
 // This should always be the last middleware loaded

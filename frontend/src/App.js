@@ -53,6 +53,8 @@ import ProtectedAdminRoute from "./routes/ProtectedAdminRoute";
 import SellerProtectedRoute from "./routes/SellerProtectedRoute";
 import { ShopHomePage } from "./ShopRoutes";
 import { getAllProducts } from "./redux/actions/product";
+import TestPayment from "./TestPayment";
+import SimplePaymentPage from "./SimplePaymentPage";
 
 const App = () => {
   useEffect(() => {
@@ -64,17 +66,6 @@ const App = () => {
   return (
     <AuthProvider>
     <BrowserRouter>
-      <Routes>
-        <Route
-          path="/payment"
-          element={
-            <ProtectedRoute>
-              <PaymentPage />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -99,8 +90,13 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/payment"
+          element={<PaymentPage />}
+        />
 
         <Route path="/order/success" element={<OrderSuccessPage />} />
+        <Route path="/test-payment" element={<TestPayment />} />
         <Route
           path="/profile"
           element={
