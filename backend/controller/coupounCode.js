@@ -12,12 +12,14 @@ router.post(
   isSeller,
   catchAsyncErrors(async (req, res, next) => {
     try {
-      const isCoupounCodeExists = await CoupounCode.find({
-        name: req.body.name,
-      });
-
-      if (isCoupounCodeExists.length !== 0) {
-        return next(new ErrorHandler("Coupoun code already exists!", 400));
+      // Kiểm tra xem coupon code đã tồn tại chưa bằng cách so sánh với tất cả coupon hiện có
+      const existingCoupons = await CoupounCode.find({ shopId: req.body.shopId });
+      
+      for (let coupon of existingCoupons) {
+        const isNameMatch = await coupon.compareName(req.body.name);
+        if (isNameMatch) {
+          return next(new ErrorHandler("Coupoun code already exists!", 400));
+        }
       }
 
       const coupounCode = await CoupounCode.create(req.body);
@@ -75,11 +77,27 @@ router.get(
   "/get-coupon-value/:name",
   catchAsyncErrors(async (req, res, next) => {
     try {
-      const couponCode = await CoupounCode.findOne({ name: req.params.name });
+      const requestedName = req.params.name;
+      
+      // Lấy tất cả coupon codes và tìm kiếm bằng cách so sánh hash
+      const allCoupons = await CoupounCode.find({});
+      let foundCoupon = null;
+      
+      for (let coupon of allCoupons) {
+        const isNameMatch = await coupon.compareName(requestedName);
+        if (isNameMatch) {
+          foundCoupon = coupon;
+          break;
+        }
+      }
+
+      if (!foundCoupon) {
+        return next(new ErrorHandler("Coupon code not found!", 404));
+      }
 
       res.status(200).json({
         success: true,
-        couponCode,
+        couponCode: foundCoupon,
       });
     } catch (error) {
       return next(new ErrorHandler(error, 400));

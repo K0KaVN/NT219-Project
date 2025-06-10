@@ -12,6 +12,7 @@ const { isAuthenticated, isAdmin } = require("../middleware/auth");
 const Otp = require("../model/otp");
 const router = express.Router();
 const { encryptDeviceId, decryptDeviceId, signDeviceId, verifyDeviceId } = require('../utils/deviceIdSecurity');
+const { findUserByPhoneNumber, updateUserPhoneNumber, updateUserAddress } = require('../utils/encryptedSearch');
 const crypto = require("crypto");
 const PUBLIC_KEY = process.env.EC_PUBLIC_KEY && process.env.EC_PUBLIC_KEY.trim();
 const bcrypt = require("bcryptjs");

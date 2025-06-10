@@ -6,6 +6,8 @@ const Order = require("../model/order");
 const Shop = require("../model/shop");
 const Product = require("../model/product");
 const User = require("../model/user");
+const { decryptAmount } = require("../utils/encryption");
+const ErrorHandler = require("../utils/ErrorHandler");
 
 // Import OQS Signature utility
 const { signOrderData, verifyOrderSignature, getPublicKey, getAlgorithm } = require('../utils/oqsSignature');
@@ -162,6 +164,74 @@ router.get(
       methods: ["direct"] 
     });
   })
+);
+
+// Update seller balance when order is delivered
+router.put(
+    "/update-seller-balance/:orderId",
+    isAuthenticated,
+    isAdmin,
+    catchAsyncErrors(async (req, res, next) => {
+        try {
+            const { orderId } = req.params;
+            
+            const order = await Order.findById(orderId);
+            if (!order) {
+                return next(new ErrorHandler("Order not found", 404));
+            }
+
+            // Lấy thông tin totalPrice đã được giải mã tự động
+            const orderData = order.toJSON();
+            const orderAmount = orderData.totalPrice;
+
+            // Tìm tất cả shops liên quan đến order
+            const uniqueShopIds = [...new Set(order.cart.map(item => item.shopId))];
+
+            for (const shopId of uniqueShopIds) {
+                // Tính toán amount cho shop này
+                const shopItems = order.cart.filter(item => item.shopId === shopId);
+                const shopAmount = shopItems.reduce((total, item) => {
+                    return total + (item.price * item.qty);
+                }, 0);
+
+                // Cập nhật balance của shop
+                const shop = await Shop.findById(shopId);
+                if (shop) {
+                    // Giải mã balance hiện tại
+                    const currentBalance = decryptAmount(shop.availableBalance) || 0;
+                    const newBalance = currentBalance + shopAmount;
+
+                    // Cập nhật balance (sẽ được mã hóa tự động)
+                    shop.availableBalance = newBalance;
+
+                    // Thêm transaction record
+                    shop.transections.push({
+                        amount: shopAmount, // Sẽ được mã hóa tự động
+                        status: "Credit",
+                        createdAt: new Date(),
+                        orderId: orderId
+                    });
+
+                    await shop.save();
+                }
+            }
+
+            // Cập nhật order status
+            order.status = "Delivered";
+            order.deliveredAt = new Date();
+            await order.save();
+
+            res.status(200).json({
+                success: true,
+                message: "Seller balances updated successfully",
+                order: order.toJSON() // Tự động giải mã khi trả về
+            });
+
+        } catch (error) {
+            console.error("Error updating seller balance:", error);
+            return next(new ErrorHandler(error.message, 500));
+        }
+    })
 );
 
 module.exports = router;

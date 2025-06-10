@@ -9,6 +9,7 @@ const { isAuthenticated, isSeller, isAdmin } = require("../middleware/auth");
 const { upload } = require("../multer");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const ErrorHandler = require("../utils/ErrorHandler");
+const { findShopByPhoneNumber, findShopsByAddress, updateShopContactInfo } = require('../utils/encryptedSearch');
 
 const sendShopToken = require("../utils/shopToken");
 const bcrypt = require("bcryptjs");

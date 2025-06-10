@@ -7,6 +7,7 @@ const Order = require("../model/order");
 const Shop = require("../model/shop");
 const Product = require("../model/product");
 const User = require("../model/user"); // Import User model to fetch user details for PIN verification
+const { findOrdersByPriceRange } = require('../utils/encryptedSearch');
 // Import OQS Signature utility functions
 const { signOrderData, verifyOrderSignature, getPublicKey, getAlgorithm } = require('../utils/oqsSignature');
 
@@ -516,6 +517,34 @@ router.get(
             });
         } catch (error) {
             console.error("Error getting all admin orders:", error);
+            return next(new ErrorHandler(error.message, 500));
+        }
+    })
+);
+
+// Search orders by price range (Admin only)
+router.get(
+    "/admin-search-orders-by-price/:minPrice/:maxPrice",
+    isAuthenticated,
+    isAdmin,
+    catchAsyncErrors(async (req, res, next) => {
+        try {
+            const minPrice = parseFloat(req.params.minPrice);
+            const maxPrice = parseFloat(req.params.maxPrice);
+
+            if (isNaN(minPrice) || isNaN(maxPrice)) {
+                return next(new ErrorHandler("Invalid price range", 400));
+            }
+
+            const orders = await findOrdersByPriceRange(minPrice, maxPrice);
+
+            res.status(200).json({
+                success: true,
+                orders,
+                count: orders.length
+            });
+        } catch (error) {
+            console.error("Error searching orders by price:", error);
             return next(new ErrorHandler(error.message, 500));
         }
     })

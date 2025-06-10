@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const { encryptPhoneNumber, encryptAddress, decryptUserData } = require("../utils/encryption");
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -19,7 +20,7 @@ const userSchema = new mongoose.Schema({
     select: false,
   },
   phoneNumber: {
-    type: Number,
+    type: String, // Đổi từ Number sang String để lưu dữ liệu đã mã hóa
   },
   addresses: [
     {
@@ -32,7 +33,7 @@ const userSchema = new mongoose.Schema({
         required: true,
       },
       address: {
-        type: String, // Detailed address
+        type: String, // Sẽ được mã hóa
         required: true,
       },
       addressType: {
@@ -80,6 +81,20 @@ userSchema.pre("save", async function (next) {
     if (this.isModified("paymentPin") && this.paymentPin) {
         this.paymentPin = await bcrypt.hash(this.paymentPin, 10);
     }
+    
+    // Mã hóa phoneNumber
+    if (this.isModified("phoneNumber") && this.phoneNumber) {
+        this.phoneNumber = encryptPhoneNumber(this.phoneNumber);
+    }
+    
+    // Mã hóa addresses
+    if (this.isModified("addresses") && this.addresses) {
+        this.addresses = this.addresses.map(addr => ({
+            ...addr,
+            address: encryptAddress(addr.address)
+        }));
+    }
+    
     next();
 });
 
@@ -103,6 +118,12 @@ userSchema.methods.comparePaymentPin = async function (enteredPin) {
         return false; // No PIN set
     }
     return await bcrypt.compare(enteredPin, this.paymentPin);
+};
+
+// Method để giải mã user data khi trả về
+userSchema.methods.toJSON = function() {
+    const user = this.toObject();
+    return decryptUserData(user);
 };
 
 module.exports = mongoose.model("User", userSchema);
