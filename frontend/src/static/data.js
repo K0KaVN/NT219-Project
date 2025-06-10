@@ -194,7 +194,7 @@ export const categoriesData = [
   },
   {
     id: 2,
-    title: "cosmetics and body care",
+    title: "Cosmetics and body care",
     subTitle: "",
     image_Url:
       "https://indian-retailer.s3.ap-south-1.amazonaws.com/s3fs-public/2021-07/kosme1.png",
@@ -225,13 +225,13 @@ export const categoriesData = [
     title: "Gifts",
     subTitle: "",
     image_Url:
-      "https://securecdn.pymnts.com/wp-content/uploads/2014/11/Gifts-Photo-700x489.jpg",
+      "https://static.vecteezy.com/system/resources/previews/002/369/275/non_2x/gift-box-free-vector.jpg",
   },
   {
     id: 7,
     title: "Pet Care",
     subTitle: "",
-    image_Url: "https://cdn.openpr.com/T/c/Tc15444071_g.jpg",
+    image_Url: "https://storage.googleapis.com/amcor-product-database.appspot.com/productImagesNew/FNA019-main-1-PetProducts.png",
   },
   {
     id: 8,
@@ -590,11 +590,9 @@ export const productData = [
 export const footerProductLinks = [
   {
     name: "About us",
-    link: "/about",
   },
   {
     name: "Careers",
-    link: "/carrers",
   },
   {
     name: "Store Locations",

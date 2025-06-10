@@ -61,7 +61,7 @@ const Header = ({ activeHeading }) => {
           <div>
             <Link to="/">
               <img
-                src="https://shopo.quomodothemes.website/assets/images/logo.svg"
+                src="https://media.discordapp.net/attachments/897821919489970200/1381880151331180574/Thiet_ke_chua_co_ten__2_-removebg-preview.png?ex=68491fae&is=6847ce2e&hm=58ba949552e75ef852ff490f49c61097dbf2f5f49313336e11d1eb5d9ec07135&=&format=webp&quality=lossless"
                 alt=""
               />
             </Link>
@@ -209,6 +209,7 @@ const Header = ({ activeHeading }) => {
               </div>
             </div>
             {/* Avatar end */}
+            
             {/* card  popup start */}
             {openCart ? <Cart setOpenCart={setOpenCart} /> : null}
             {/* card popup end */}

@@ -80,33 +80,23 @@ router.get(
 );
 
 
-router.post("/create-user", upload.single("file"), async (req, res, next) => {
+router.post("/create-user", async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
     const userEmail = await User.findOne({ email });
 
     if (userEmail) {
-      // if user already exits account is not create and file is deleted
-      const filename = req.file.filename;
-      const filePath = `uploads/${filename}`;
-      fs.unlink(filePath, (err) => {
-        if (err) {
-          console.log(err);
-          res.status(500).json({ message: "Error deleting file" });
-        }
-      });
-
-      return next(new ErrorHandler("User already exits", 400));
+      return next(new ErrorHandler("User already exists", 400));
     }
 
-    const filename = req.file.filename;
-    const fileUrl = path.join(filename);
+    // Use DefaultAvatar.jpeg instead of uploaded file
+    const defaultAvatar = "DefaultAvatar.jpeg";
 
     const user = {
       name: name,
       email: email,
       password: password,
-      avatar: fileUrl,
+      avatar: defaultAvatar,
     };
 
     const activationToken = createActivationToken(user);
@@ -450,16 +440,20 @@ router.put(
     try {
       const existsUser = await User.findById(req.user.id);
 
-      const existAvatarPath = `uploads/${existsUser.avatar}`;
-
-      fs.unlinkSync(existAvatarPath); // Delete Priviuse Image
+      // If avatar is not DefaultAvatar, delete the previous image
+      if (existsUser.avatar !== "DefaultAvatar.jpeg") {
+        const existAvatarPath = `uploads/${existsUser.avatar}`;
+        try {
+          fs.unlinkSync(existAvatarPath); // Delete previous image
+        } catch (err) {
+          console.log("Error deleting previous avatar:", err);
+          // Continue execution even if file deletion fails
+        }
+      }
 
       const fileUrl = path.join(req.file.filename); // new image
 
-      /* The code `const user = await User.findByIdAndUpdate(req.user.id, { avatar: fileUrl });` is
-        updating the avatar field of the user with the specified `req.user.id`. It uses the
-        `User.findByIdAndUpdate()` method to find the user by their id and update the avatar field
-        with the new `fileUrl` value. The updated user object is then stored in the `user` variable. */
+      /* The code updates the avatar field of the user with the specified `req.user.id`. */
       const user = await User.findByIdAndUpdate(req.user.id, {
         avatar: fileUrl,
       });
