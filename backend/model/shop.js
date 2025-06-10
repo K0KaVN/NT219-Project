@@ -72,6 +72,15 @@ const shopSchema = new mongoose.Schema({
   },
   resetPasswordToken: String,
   resetPasswordTime: Date,
+
+  devices: [
+    {
+      deviceId: String,
+      userAgent: String,
+      lastLogin: Date,
+      ip: String,
+    }
+  ],
 });
 
 // Hash password

@@ -1,7 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import styles from "../../styles/styles";
 import { Link, useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { loadSeller } from "../../redux/actions/user";
 import axios from "axios";
 import { server } from "../../server";
 import { toast } from "react-toastify";
@@ -9,31 +11,110 @@ import { toast } from "react-toastify";
 
 const ShopLogin = () => {
     const navigate = useNavigate()
+    const dispatch = useDispatch();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("")
     const [visible, setVisible] = useState(false)
+    const [step, setStep] = useState(1);
+    const [otp, setOtp] = useState("");
+    const [rememberMe, setRememberMe] = useState(false);
+    const [otpTimer, setOtpTimer] = useState(60);
+    const timerRef = useRef();
 
 
 
+
+    useEffect(() => {
+        if (step === 2 && otpTimer > 0) {
+            timerRef.current = setTimeout(() => setOtpTimer(otpTimer - 1), 1000);
+        }
+        return () => clearTimeout(timerRef.current);
+    }, [otpTimer, step]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        const payload = {
+            email,
+            password,
+            userAgent: navigator.userAgent,
+        };
+
         await axios
             .post(
                 `${server}/shop/login-shop`,
-                {
-                    email,
-                    password,
-                },
+                payload,
                 { withCredentials: true }
             ).then((res) => {
-                toast.success("Login Sucess!")
-                navigate("/dashboard")
-                window.location.reload(true);
+                if (res.data.skipOtp) {
+                    toast.success("Login Success!");
+                    setStep(1); // Reset về bước 1
+                    // Dispatch loadSeller to update Redux state
+                    dispatch(loadSeller());
+                    // Navigate after a short delay
+                    setTimeout(() => {
+                        navigate("/dashboard");
+                    }, 1000);
+                } else {
+                    toast.success("OTP sent to your email!");
+                    setStep(2); // Sang bước nhập OTP
+                    setOtpTimer(60); // Reset timer
+                }
             })
             .catch((err) => {
-                toast.error(err.response.data.message);
+                toast.error(err.response?.data?.message || "Login failed");
+            });
+    };
+
+    const handleResendOtp = async () => {
+        const payload = {
+            email,
+            password,
+            userAgent: navigator.userAgent,
+        };
+        await axios
+            .post(
+                `${server}/shop/login-shop`,
+                payload,
+                { withCredentials: true }
+            ).then((res) => {
+                if (!res.data.skipOtp) {
+                    toast.success("OTP resent to your email!");
+                    setOtpTimer(60); // reset timer
+                }
+            })
+            .catch((err) => {
+                toast.error(err.response?.data?.message || "Resend OTP failed");
+            });
+    };
+
+    const handleOtpSubmit = async (e) => {
+        e.preventDefault();
+        await axios
+            .post(
+                `${server}/shop/login-verify-shop-otp`,
+                {
+                    email,
+                    otp,
+                    userAgent: navigator.userAgent,
+                },
+                { withCredentials: true }
+            ).then(async () => {
+                toast.success("Login Success!");
+                setStep(1); // Reset form step
+                setOtp(""); // Clear OTP
+                setPassword(""); // Clear password for security
+                
+                // Dispatch loadSeller to update Redux state
+                await dispatch(loadSeller());
+                
+                // Navigate to dashboard after a short delay
+                setTimeout(() => {
+                    navigate("/dashboard");
+                }, 1000);
+            })
+            .catch((err) => {
+                toast.error(err.response?.data?.message || "OTP verification failed.");
             });
     };
 
@@ -46,6 +127,7 @@ const ShopLogin = () => {
             </div>
             <div className='mt-8 sm:mx-auto sw:w-full sm:max-w-md'>
                 <div className='bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10'>
+                    {step === 1 ? (
                     <form className='space-y-6' onSubmit={handleSubmit} >
                         {/* Email */}
                         <div>
@@ -107,6 +189,8 @@ const ShopLogin = () => {
                                     type="checkbox"
                                     name="remember-me"
                                     id="remember-me"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
                                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                 />
                                 <label
@@ -128,7 +212,7 @@ const ShopLogin = () => {
                         <div>
                             <button
                                 type='submit'
-                                className=' className="group relative w-full h-[40px] flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"'
+                                className='group relative w-full h-[40px] flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700'
                             >
                                 Submit
                             </button>
@@ -140,7 +224,45 @@ const ShopLogin = () => {
                                 Sign Up
                             </Link>
                         </div>
+                    </form> ) : (
+                    <form className='space-y-6' onSubmit={handleOtpSubmit}>
+                        <div>
+                            <label htmlFor="otp" className='block text-sm font-medium text-gray-700'>
+                                Enter OTP sent to your email
+                            </label>
+                            <div className='mt-1'>
+                                <input
+                                    type="text"
+                                    name="otp"
+                                    required
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value)}
+                                    className='appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'
+                                />
+                            </div>
+                            <div className="mb-4 text-center">
+                            <span className="text-sm text-gray-600">
+                            OTP expires in: {otpTimer}s
+                            </span>
+                            <br />
+                            <button
+                                type="button"
+                                className={`mt-2 text-blue-600 hover:underline text-sm ${otpTimer > 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                                onClick={handleResendOtp}
+                                disabled={otpTimer > 0}
+                            >
+                        Resend OTP
+                            </button>
+                        </div>
+                        </div>
+                        <button
+                            type='submit'
+                            className='group relative w-full h-[40px] flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700'
+                        >
+                            Verify OTP
+                        </button>
                     </form>
+                )}
                 </div>
             </div>
         </div>

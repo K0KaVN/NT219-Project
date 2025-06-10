@@ -1,7 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useContext } from 'react'
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import styles from "../../styles/styles";
 import { Link, useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { loadUser } from "../../redux/actions/user";
+import { AuthContext } from "../../context/AuthContext";
 import axios from "axios";
 import { server } from "../../server";
 import { toast } from "react-toastify";
@@ -9,6 +12,8 @@ import { toast } from "react-toastify";
 
 const Login = () => {
     const navigate = useNavigate();
+    const dispatch = useDispatch();
+    const { checkAuthStatus } = useContext(AuthContext);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("")
     const [visible, setVisible] = useState(false)
@@ -59,13 +64,20 @@ const Login = () => {
             `${server}/user/login-user`,
             payload,
             { withCredentials: true }
-        ).then((res) => {
+        ).then(async (res) => {
         //setDeviceInfo(res.data.encryptedDeviceId, res.data.signature);
         if (res.data.skipOtp) {
             toast.success("Login Success!");
             setStep(1); // Reset về bước 1
-            //navigate("/");
-            window.location.reload(true);
+            // Update both Redux and Context state
+            await Promise.all([
+                dispatch(loadUser()),
+                checkAuthStatus()
+            ]);
+            // Navigate after a short delay
+            setTimeout(() => {
+                navigate("/");
+            }, 1000);
         } else {
             toast.success("OTP sent to your email!");
             setStep(2); // Sang bước nhập OTP
@@ -112,12 +124,22 @@ const Login = () => {
         userAgent: navigator.userAgent,
       },
       { withCredentials: true }
-    ).then(() => {
+    ).then(async () => {
       toast.success("Login Success!");
-    //   setTimeout(() => {
-    //     navigate("/");
-    //   }, 100);
-      window.location.reload(true);
+      setStep(1); // Reset form step
+      setOtp(""); // Clear OTP
+      setPassword(""); // Clear password for security
+      
+      // Update both Redux and Context state
+      await Promise.all([
+        dispatch(loadUser()),
+        checkAuthStatus()
+      ]);
+      
+      // Navigate to home page after a short delay
+      setTimeout(() => {
+        navigate("/");
+      }, 1000);
     })
     .catch((err) => {
       toast.error(err.response?.data?.message || "OTP verification failed.");
