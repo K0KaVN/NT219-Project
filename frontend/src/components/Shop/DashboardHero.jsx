@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { AiOutlineArrowRight, AiOutlineMoneyCollect } from "react-icons/ai";
 import styles from "../../styles/styles";
 import { Link } from "react-router-dom";
@@ -18,7 +18,7 @@ const DashboardHero = () => {
     useEffect(() => {
         dispatch(getAllOrdersOfShop(seller._id));
         dispatch(getAllProductsShop(seller._id));
-    }, [dispatch]);
+    }, [dispatch, seller._id]);
 
     /*  is calculating the available balance of the seller and rounding it to 2 decimal places. */
     const availableBalance = seller?.availableBalance.toFixed(2);

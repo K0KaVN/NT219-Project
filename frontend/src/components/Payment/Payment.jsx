@@ -5,7 +5,6 @@ import { useSelector } from "react-redux";
 import axios from "axios";
 import { server } from "../../server";
 import { toast } from "react-toastify";
-import { RxCross1 } from "react-icons/rx";
 
 const Payment = () => {
     const [orderData, setOrderData] = useState([]);

@@ -92,9 +92,13 @@ const OrderDetails = () => {
         data?.cart.map((item, index) => (
           <div className="w-full flex items-start mb-5">
             <img
-              src={`${backend_url}/${item.images[0]}`}
+              src={`${backend_url}${item.images[0]}`}
               alt="Product item order img"
               className="w-[80x] h-[80px]"
+              onError={(e) => {
+                console.error('Order product image failed to load:', e.target.src);
+                e.target.style.display = 'none';
+              }}
             />
             <div className="w-full">
               <h5 className="pl-3 text-[20px]">{item.name}</h5>

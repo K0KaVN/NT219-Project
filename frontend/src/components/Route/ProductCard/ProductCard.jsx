@@ -17,7 +17,7 @@ import { addTocart } from '../../../redux/actions/cart';
 import { toast } from 'react-toastify';
 import Ratings from "../../Products/Ratings";
 
-const ProductCard = ({ data, isEvent }) => {
+const ProductCard = ({ data }) => {
     const { wishlist } = useSelector((state) => state.wishlist);
     const { cart } = useSelector((state) => state.cart);
     const [click, setClick] = useState(false);
@@ -70,14 +70,18 @@ const ProductCard = ({ data, isEvent }) => {
                 <div className='flex justify-end'>
                 </div>
 
-                <Link to={`${isEvent === true ? `/product/${data._id}?isEvent=true` : `/product/${data._id}`}`}>
+                <Link to={`/product/${data._id}`}>
                     <img
-                        src={`${backend_url}${data.images && data.images[0]}`}
+                        src={`${backend_url}${data.images && data.images[0] ? data.images[0] : ''}`}
                         alt="prd"
                         className='w-full h-[170px] object-contain'
+                        onError={(e) => {
+                            console.error('Image failed to load:', e.target.src);
+                            e.target.style.display = 'none';
+                        }}
                     />
                 </Link>
-                <Link to={`${isEvent === true ? `/product/${data._id}?isEvent=true` : `/product/${data._id}`}`}>
+                <Link to={`/product/${data._id}`}>
                     <h5 className={`${styles.shop_name}`} >{data.shop.name}</h5>
                 </Link>
                 <Link to={`/product/${data._id}`}>

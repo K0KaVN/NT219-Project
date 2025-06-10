@@ -93,6 +93,10 @@ const CartSingle = ({ data, removeFromWishlistHandler, addToCartHandler }) => {
             src={`${backend_url}${data?.images[0]}`}
             alt=""
             className="w-[130px] h-min ml-2 mr-2 rounded-[5px]"
+            onError={(e) => {
+              console.error('Wishlist image failed to load:', e.target.src);
+              e.target.style.display = 'none';
+            }}
           />
 
           <div className="pl-[15px]">

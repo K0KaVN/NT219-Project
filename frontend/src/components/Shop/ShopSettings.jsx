@@ -69,7 +69,7 @@ const ShopSettings = () => {
                     <div className="relative">
                         <img
                             src={
-                                avatar ? URL.createObjectURL(avatar) : `${backend_url}/${seller.avatar}`
+                                avatar ? URL.createObjectURL(avatar) : `${backend_url}${seller.avatar}`
                             }
                             alt=""
                             className="w-[200px] h-[200px] rounded-full cursor-pointer"

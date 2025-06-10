@@ -23,10 +23,6 @@ The MERN Marketplace application will allow users to become sellers, who can man
 ![mongodb](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)&nbsp;
 ![jwt](	https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=JSON%20web%20tokens&logoColor=white)&nbsp;
 
-**Realtime Communication:**
-
-![socketio](https://img.shields.io/badge/Socket.io-010101?&style=for-the-badge&logo=Socket.io&logoColor=white)
-
 **package manager**
 
 ![Yarn](https://img.shields.io/badge/Yarn-2C8EBB?style=for-the-badge&logo=yarn&logoColor=white)
@@ -345,8 +341,6 @@ JWT (JSON Web Tokens): Implementing JWT-based authentication for secure and stat
 
 MongoDB: Leveraging MongoDB, a NoSQL database, for efficient data storage and retrieval, enabling seamless scalability. <Br/>
 
-Real-time Communication: Utilizing Socket.io to enable real-time communication between buyers, sellers, and the application server. <Br/>
-
 Yarn: Employing Yarn as the package manager to manage project dependencies efficiently. <Br/>
 
 Image Upload with Multer: Integrating Multer middleware to handle image uploads, ensuring seamless storage and retrieval of product images. <Br/>
@@ -436,7 +430,7 @@ Image Management: Enable admins to delete images, ensuring data integrity and st
 
 Feel free to reach out to me for more information or to explore collaboration opportunities.
 
-#MERNMarketplace #Ecommerce #React #NodeJS #ExpressJS #MongoDB #SocketIO #TailwindCSS #MaterialUI #Innovation #OnlineShopping #RevolutionizingRetail
+#MERNMarketplace #Ecommerce #React #NodeJS #ExpressJS #MongoDB #TailwindCSS #MaterialUI #Innovation #OnlineShopping #RevolutionizingRetail
 
 #### _**IMPORTANT NOTE**_ - 
 This project does not have a mongoDB connection setup. Set up the connection based on the environments below.
@@ -483,10 +477,6 @@ This project does not have a mongoDB connection setup. Set up the connection bas
 - #### `mlter.js` - Sand mail login
 - #### `server.js` - Defines npm behaviors and packages for the client
 - #### `package.json` - Defines npm behaviors like the scripts defined in the next section of the README
-#### `socket` - Socket.io is use to chaing feacher
-  - .env
-  - index.js
-  - package.json
 #### `.gitignore` - Tells git which files to ignore
 #### `README` - This file!
 
@@ -523,17 +513,6 @@ STRIPE_API_KEY =
 STRIPE_SECRET_KEY = 
 ```
 - `yarn start`
-
-### STAP-4
-
-- `cd socket`
-- `yarn install`
-- create a `.env` file
-```
-PORT = 4000
-```
-- `yarn start`
-
 
 ## YouTub :- [I Learn from this ](https://www.youtube.com/watch?v=XxnUSZOgMLY&list=PLyah27R0n8V4Kcao94Qlt-xJ0bHxZfBjk "click to open")
 

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react'
 import {
     AiFillHeart,
     AiOutlineHeart,
-    AiOutlineMessage,
     AiOutlineShoppingCart,
 } from "react-icons/ai";
 import { RxCross1 } from "react-icons/rx";
@@ -22,10 +21,6 @@ const ProductDetailsCard = ({ setOpen, data }) => {
     const [count, setCount] = useState(1)
     const [click, setClick] = useState(false)
     const [select, setSelect] = useState(false)
-
-    const handleMessageSubmit = () => {
-
-    }
 
     const decrementCount = () => {
         if (count > 1) {
@@ -90,14 +85,23 @@ const ProductDetailsCard = ({ setOpen, data }) => {
 
                                 <div className="block w-full 800px:flex">
                                     <div className='w-full 800px:w-[50%]'>
-                                        <img src={`${backend_url}${data.images && data.images[0]}`} alt="img" />
+                                        <img 
+                                            src={`${backend_url}${data.images && data.images[0]}`} 
+                                            alt="img"
+                                            onError={(e) => {
+                                                console.error('Product image failed to load:', e.target.src);
+                                                e.target.style.display = 'none';
+                                            }} 
+                                        />
                                         <div className='flex' >
-                                            <Link to={`/shop/preview/${data.shop._id}`} className="flex">
-
-                                                <img
+                                            <Link to={`/shop/preview/${data.shop._id}`} className="flex">                                                    <img
                                                     src={`${backend_url}${data?.shop?.avatar}`}
                                                     alt=""
                                                     className='w-[50px] h-[50px] rounded-full mr-2'
+                                                    onError={(e) => {
+                                                        console.error('Shop avatar image failed to load:', e.target.src);
+                                                        e.target.style.display = 'none';
+                                                    }}
                                                 />
                                                 <div>
                                                     <h3 className={`${styles.shop_name}`}>
@@ -108,14 +112,6 @@ const ProductDetailsCard = ({ setOpen, data }) => {
                                                     </h5>
                                                 </div>
                                             </Link>
-                                        </div>
-                                        <div
-                                            className={`${styles.button} bg-[#000] mt-4 rounded-[4px] h-11`}
-                                            onClick={handleMessageSubmit}
-                                        >
-                                            <span className="text-[#fff] flex items-center">
-                                                Send Message <AiOutlineMessage className="ml-1" />
-                                            </span>
                                         </div>
                                         <h5 className="text-[16px] text-[red] mt-5">({data.total_sell}) Sold out</h5>
 

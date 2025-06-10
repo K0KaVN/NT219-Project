@@ -1,5 +1,5 @@
 import React from "react";
-import { AiOutlineLogin, AiOutlineMessage } from "react-icons/ai";
+import { AiOutlineLogin } from "react-icons/ai";
 import { RiLockPasswordLine } from "react-icons/ri";
 import { HiOutlineReceiptRefund, HiOutlineShoppingBag } from "react-icons/hi";
 import { RxPerson } from "react-icons/rx";
@@ -73,20 +73,6 @@ const ProfileSidebar = ({ active, setActive }) => {
                         } 800px:block hidden`}
                 >
                     Refunds
-                </span>
-            </div>
-
-            {/* Inbox Section */}
-            <div
-                className="flex items-center cursor-pointer w-full mb-8"
-                onClick={() => setActive(4) || navigate("/inbox")} // Navigate to inbox page
-            >
-                <AiOutlineMessage size={20} color={active === 4 ? "red" : ""} />
-                <span
-                    className={`pl-3 ${active === 4 ? "text-[red]" : ""
-                        } 800px:block hidden`}
-                >
-                    Inbox
                 </span>
             </div>
 

@@ -62,6 +62,10 @@ const ShopInfo = ({ isOwner }) => {
                                     src={`${backend_url}${data.avatar}`}
                                     alt=""
                                     className="w-[150px] h-[150px] object-cover rounded-full"
+                                    onError={(e) => {
+                                        console.error('Shop avatar image failed to load:', e.target.src);
+                                        e.target.style.display = 'none';
+                                    }}
                                 />
                             </div>
                             <h3 className="text-center py-2 text-[20px]">{data.name}</h3>

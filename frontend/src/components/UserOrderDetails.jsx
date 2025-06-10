@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styles from "../styles/styles";
 import { BsFillBagFill } from "react-icons/bs";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { backend_url, server } from "../server";
@@ -29,13 +29,8 @@ const UserOrderDetails = () => {
 
   const reviewHandler = async (type) => {
     try {
-      const endpoint =
-        type === "product"
-          ? "/product/create-new-review"
-          : "/event/create-new-review-event";
-
       const res = await axios.put(
-        `${server}${endpoint}`,
+        `${server}/product/create-new-review`,
         {
           user,
           rating,
@@ -60,7 +55,6 @@ const UserOrderDetails = () => {
   const combinedHandler = async () => {
     if (rating > 1) {
       await reviewHandler("product");
-      await reviewHandler("event");
     }
   };
 
@@ -105,7 +99,7 @@ const UserOrderDetails = () => {
           return (
             <div className="w-full flex items-start mb-5">
               <img
-                src={`${backend_url}/${item.images[0]}`}
+                src={`${backend_url}${item.images[0]}`}
                 alt="Product item order img"
                 className="w-[80x] h-[80px]"
               />
@@ -144,7 +138,7 @@ const UserOrderDetails = () => {
             <br />
             <div className="w-full flex">
               <img
-                src={`${backend_url}/${selectedItem?.images[0]}`}
+                src={`${backend_url}${selectedItem?.images[0]}`}
                 alt=""
                 className="w-[80px] h-[80px]"
               />
@@ -258,11 +252,6 @@ const UserOrderDetails = () => {
           )}
         </div>
       </div>
-      <br />
-
-      <Link to="/">
-        <div className={`${styles.button} text-white`}>Send Message</div>
-      </Link>
       <br />
       <br />
     </div>

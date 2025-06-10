@@ -1,5 +1,4 @@
 import React from "react";
-import { MdOutlineLocalOffer } from "react-icons/md";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { CiMoneyBill } from "react-icons/ci";
@@ -28,13 +27,7 @@ const AdminHeader = () => {
               className="mx-5 cursor-pointer"
             />
           </Link>
-          <Link to="/admin-events" className="800px:block hidden">
-            <MdOutlineLocalOffer
-              color="#555"
-              size={30}
-              className="mx-5 cursor-pointer"
-            />
-          </Link>
+
           <Link to="/admin-sellers" className="800px:block hidden">
             <GrWorkshop
               color="#555"
@@ -46,6 +39,10 @@ const AdminHeader = () => {
             src={`${backend_url}${user?.avatar}`}
             alt=""
             className="w-[50px] h-[50px] rounded-full object-cover"
+            onError={(e) => {
+              console.error('Admin avatar image failed to load:', e.target.src);
+              e.target.style.display = 'none';
+            }}
           />
         </div>
       </div>

@@ -18,7 +18,7 @@ import { toast } from "react-toastify";
 import axios from 'axios';
 import { Country, State } from "country-state-city";
 import { getAllOrdersOfUser } from '../../redux/actions/order';
-import SecuritySettings from './SecuritySettings'; // Import your SecuritySettings component
+import SecuritySettings from './SecuritySettings';
 
 const ProfileContent = ({ active }) => {
     const { user, error, successMessage } = useSelector((state) => state.user);
@@ -26,7 +26,6 @@ const ProfileContent = ({ active }) => {
     const [email, setEmail] = useState(user && user.email);
     const [phoneNumber, setPhoneNumber] = useState(user && user.phoneNumber);
     const [password, setPassword] = useState("");
-    const [avatar, setAvatar] = useState(null);
 
     const dispatch = useDispatch();
 
@@ -39,7 +38,7 @@ const ProfileContent = ({ active }) => {
             toast.success(successMessage);
             dispatch({ type: "clearMessages" });
         }
-    }, [error, successMessage]);
+    }, [error, successMessage, dispatch]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -49,7 +48,6 @@ const ProfileContent = ({ active }) => {
     // Image update
     const handleImage = async (e) => {
         const file = e.target.files[0];
-        setAvatar(file);
 
         const formData = new FormData();
         formData.append("image", e.target.files[0]);
@@ -80,7 +78,11 @@ const ProfileContent = ({ active }) => {
                             <div className='relative'>
                                 <img src={`${backend_url}${user?.avatar}`}
                                     className="w-[150px] h-[150px] rounded-full object-cover border-[3px] border-[#3ad132]"
-                                    alt="profile img" />
+                                    alt="profile img"
+                                    onError={(e) => {
+                                        console.error('Avatar image failed to load:', e.target.src);
+                                        e.target.style.display = 'none';
+                                    }} />
 
                                 <div className="w-[30px] h-[30px] bg-[#E3E9EE] rounded-full flex items-center justify-center cursor-pointer absolute bottom-[5px] right-[5px]">
                                     <input type="file"
@@ -98,7 +100,7 @@ const ProfileContent = ({ active }) => {
                         <br />
 
                         <div className='w-full px-5'>
-                            <form onSubmit={handleSubmit} aria-required={true}>
+                            <form onSubmit={handleSubmit}>
                                 <div className='w-full 800px:flex block pb-3'>
 
                                     <div className=' w-[100%] 800px:w-[50%]'>
@@ -197,7 +199,7 @@ const ProfileContent = ({ active }) => {
                 </div>
             )}
 
-            {/* Payment PIN / Security Settings (New section, using active === 8) */}
+            {/* Payment PIN / Security Settings */}
             {active === 8 && (
                 <div>
                     <SecuritySettings />
@@ -211,13 +213,12 @@ const ProfileContent = ({ active }) => {
 // All orders component
 const AllOrders = () => {
     const { user } = useSelector((state) => state.user);
-
     const { orders } = useSelector((state) => state.order);
     const dispatch = useDispatch();
 
     useEffect(() => {
         dispatch(getAllOrdersOfUser(user._id));
-    }, [dispatch, user._id]); // Added dispatch and user._id to dependency array
+    }, [dispatch, user._id]);
 
     const columns = [
         { field: "id", headerName: "Order ID", minWidth: 150, flex: 0.7 },
@@ -302,7 +303,7 @@ const AllRefundOrders = () => {
 
     useEffect(() => {
         dispatch(getAllOrdersOfUser(user._id));
-    }, [dispatch, user._id]); // Added dispatch and user._id to dependency array
+    }, [dispatch, user._id]);
 
     const eligibleOrders = orders && orders.filter((item) => item.status === "Processing refund");
 
@@ -379,7 +380,6 @@ const AllRefundOrders = () => {
     );
 };
 
-
 // Track order component
 const TrackOrder = () => {
     const { user } = useSelector((state) => state.user);
@@ -388,7 +388,7 @@ const TrackOrder = () => {
 
     useEffect(() => {
         dispatch(getAllOrdersOfUser(user._id));
-    }, [dispatch, user._id]); // Added dispatch and user._id to dependency array
+    }, [dispatch, user._id]);
 
     const columns = [
         { field: "id", headerName: "Order ID", minWidth: 150, flex: 0.7 },
@@ -463,7 +463,6 @@ const TrackOrder = () => {
     )
 }
 
-
 // Change Password component
 const ChangePassword = () => {
     const [oldPassword, setOldPassword] = useState("");
@@ -499,7 +498,6 @@ const ChangePassword = () => {
             </h1>
             <div className='w-full'>
                 <form
-                    aria-required
                     onSubmit={passwordChangeHandler}
                     className="flex flex-col items-center"
                 >
@@ -569,7 +567,6 @@ const Address = () => {
         if (addressType === "" || country === "" || city === "") {
             toast.error("Please fill all the fields!");
         } else {
-            // Use Redux dispatch for updating address
             dispatch(
                 updatUserAddress(
                     country,
@@ -585,7 +582,7 @@ const Address = () => {
             setCity("");
             setAddress1("");
             setAddress2("");
-            setZipCode(null); // return type is int so default is null
+            setZipCode(null);
             setAddressType("");
         }
     }
@@ -612,7 +609,7 @@ const Address = () => {
                                 Add New Address
                             </h1>
                             <div className='w-full'>
-                                <form aria-required onSubmit={handleSubmit} className="w-full">
+                                <form onSubmit={handleSubmit} className="w-full">
                                     <div className="w-full block p-4">
                                         <div className="w-full pb-2">
                                             <label className="block pb-2">Country</label>
@@ -642,7 +639,6 @@ const Address = () => {
                                             </select>
                                         </div>
 
-                                        {/* City */}
                                         <div className="w-full pb-2">
                                             <label className="block pb-2">Choose your City</label>
                                             <select
@@ -668,7 +664,6 @@ const Address = () => {
                                             </select>
                                         </div>
 
-                                        {/* Address 1 */}
                                         <div className="w-full pb-2">
                                             <label className="block pb-2">Address 1</label>
                                             <input
@@ -679,7 +674,7 @@ const Address = () => {
                                                 onChange={(e) => setAddress1(e.target.value)}
                                             />
                                         </div>
-                                        {/* Address 2 */}
+
                                         <div className="w-full pb-2">
                                             <label className="block pb-2">Address 2</label>
                                             <input

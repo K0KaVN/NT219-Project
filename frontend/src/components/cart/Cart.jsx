@@ -31,7 +31,7 @@ const Cart = ({ setOpenCart }) => {
   return (
     <div className="fixed top-0 left-0 w-full bg-[#0000004b] h-screen z-10">
       <div className="fixed top-0 right-0 h-full w-[80%] 800px:w-[25%] bg-white flex flex-col overflow-y-scroll justify-between shadow-sm">
-        {cart && cart.length == 0 ? (
+        {cart && cart.length === 0 ? (
           <div className="w-full h-screen flex items-center justify-center">
             <div className="flex w-full justify-end pt-5 pr-5 fixed top-3 right-3">
               <RxCross1
@@ -144,6 +144,10 @@ const CartSingle = ({ data, quantityChangeHandler, removeFromCartHandler }) => {
             src={`${backend_url}${data?.images[0]}`}
             className="w-[130px] h-min ml-2 mr-2 rounded-[5px]"
             alt="side card"
+            onError={(e) => {
+              console.error('Cart image failed to load:', e.target.src);
+              e.target.style.display = 'none';
+            }}
           />
 
           <div className="pl-[15px]">

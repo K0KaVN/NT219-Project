@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import styles from "../../styles/styles";
-import { productData, categoriesData } from "../../static/data";
+import { categoriesData } from "../../static/data";
 import {
   AiOutlineHeart,
   AiOutlineSearch,
@@ -85,8 +85,6 @@ const Header = ({ activeHeading }) => {
                 <div className="absolute min-h-[30vh] bg-slate-50 shadow-sm-2 z-[9] p-4">
                   {searchData &&
                     searchData.map((i, index) => {
-                      const d = i.name;
-
                       return (
                         <Link to={`/product/${i._id}`}>
                           <div className="w-full flex items-start-py-3">
@@ -94,6 +92,10 @@ const Header = ({ activeHeading }) => {
                               src={`${backend_url}${i.images[0]}`}
                               alt="img"
                               className="w-[40px] h-[40px] mr-[10px]"
+                              onError={(e) => {
+                                console.error('Search result image failed to load:', e.target.src);
+                                e.target.style.display = 'none';
+                              }}
                             />
                             <h1>{i.name}</h1>
                           </div>
@@ -122,7 +124,7 @@ const Header = ({ activeHeading }) => {
       {/*  2nd part of header start */}
       <div
         className={`${
-          active == true ? "shadow-sm fixed top-0 left-0 z-10" : null
+          active === true ? "shadow-sm fixed top-0 left-0 z-10" : null
         } transition hidden 800px:flex items-center justify-between w-full bg-[#3321c8] h-[70px]`}
       >
         <div
@@ -193,6 +195,10 @@ const Header = ({ activeHeading }) => {
                       src={`${backend_url}${user.avatar}`}
                       className="w-[35px] h-[35px] rounded-full"
                       alt=""
+                      onError={(e) => {
+                        console.error('User avatar image failed to load:', e.target.src);
+                        e.target.style.display = 'none';
+                      }}
                     />
                   </Link>
                 ) : (
