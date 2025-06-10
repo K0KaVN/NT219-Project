@@ -57,12 +57,33 @@ router.post("/create-shop", upload.single("file"), async (req, res, next) => {
     try {
       await sendMail({
         email: seller.email,
-        subject: "Activate your Shop",
-        message: `Hello ${seller.name}, please click on the link to activate your shop: ${activationUrl}`,
+        subject: "Activate your Shop Account - Welcome to Our Platform!",
+        message: `Dear ${seller.name},
+
+Welcome to our e-commerce platform! Thank you for registering your shop with us.
+
+To complete your shop registration and start selling, please click on the activation link below:
+
+${activationUrl}
+
+This link will expire in 5 minutes for security reasons.
+
+Once activated, you'll be able to:
+• Add and manage your products
+• Process customer orders
+• Track your sales and earnings
+• Access seller dashboard and analytics
+
+If you didn't create this account, please ignore this email.
+
+Need help? Contact our support team at any time.
+
+Best regards,
+The E-commerce Platform Team`,
       });
       res.status(201).json({
         success: true,
-        message: `please check your email:- ${seller.email} to activate your shop!`,
+        message: `Shop registration successful! Please check your email (${seller.email}) to activate your shop account. The activation link will expire in 5 minutes.`,
       });
     } catch (error) {
       return next(new ErrorHandler(error.message, 500));

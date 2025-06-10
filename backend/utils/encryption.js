@@ -38,19 +38,29 @@ function decrypt(encryptedText) {
         return null;
     }
     
+    // Convert to string if it's not already
+    const textStr = encryptedText.toString();
+    
+    // Check if the text is valid hex (even length and contains only hex characters)
+    if (textStr.length < 2 || textStr.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(textStr)) {
+        // If it's not valid hex, assume it's already decrypted plaintext
+        return textStr;
+    }
+    
     if (!AES_KEY_DATABASE || !AES_IV_DATABASE) {
         console.error('Decryption keys not available, returning original text');
-        return encryptedText;
+        return textStr;
     }
     
     try {
         const decipher = crypto.createDecipheriv('aes-256-cbc', AES_KEY_DATABASE, AES_IV_DATABASE);
-        let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+        let decrypted = decipher.update(textStr, 'hex', 'utf8');
         decrypted += decipher.final('utf8');
         return decrypted;
     } catch (error) {
         console.error('Decryption error:', error);
-        return encryptedText; // Trả về encrypted text nếu giải mã thất bại
+        // If decryption fails, return the original text (it might already be plaintext)
+        return textStr;
     }
 }
 
@@ -63,8 +73,17 @@ function encryptPhoneNumber(phoneNumber) {
 // Giải mã số điện thoại
 function decryptPhoneNumber(encryptedPhoneNumber) {
     if (!encryptedPhoneNumber) return null;
+    
     const decrypted = decrypt(encryptedPhoneNumber);
-    return decrypted ? parseInt(decrypted) : null;
+    if (!decrypted) return null;
+    
+    // Handle the case where the value is already a number
+    if (typeof decrypted === 'number') return decrypted;
+    
+    // For phone numbers, we might want to keep them as strings or parse to int
+    // Check if it's a valid number string
+    const parsedValue = parseInt(decrypted);
+    return isNaN(parsedValue) ? decrypted : parsedValue;
 }
 
 // Mã hóa địa chỉ
@@ -100,9 +119,17 @@ function encryptAmount(amount) {
 
 // Giải mã amount (số tiền)
 function decryptAmount(encryptedAmount) {
-    if (!encryptedAmount) return null;
+    if (!encryptedAmount && encryptedAmount !== 0) return null;
+    
     const decrypted = decrypt(encryptedAmount);
-    return decrypted ? parseFloat(decrypted) : null;
+    if (!decrypted && decrypted !== '0') return null;
+    
+    // Handle the case where the value is already a number
+    if (typeof decrypted === 'number') return decrypted;
+    
+    // Parse the decrypted string to float
+    const parsedValue = parseFloat(decrypted);
+    return isNaN(parsedValue) ? null : parsedValue;
 }
 
 // Giải mã object chứa các trường cần giải mã
@@ -131,31 +158,43 @@ function decryptUserData(user) {
 function decryptShopData(shop) {
     if (!shop) return shop;
     
-    const decryptedShop = { ...shop };
-    
-    // Giải mã phoneNumber và address
-    if (shop.phoneNumber) {
-        decryptedShop.phoneNumber = decryptPhoneNumber(shop.phoneNumber);
+    try {
+        const decryptedShop = { ...shop };
+        
+        // Giải mã phoneNumber và address
+        if (shop.phoneNumber) {
+            decryptedShop.phoneNumber = decryptPhoneNumber(shop.phoneNumber);
+        }
+        
+        if (shop.address) {
+            decryptedShop.address = decryptAddress(shop.address);
+        }
+        
+        // Giải mã availableBalance
+        if (shop.availableBalance !== undefined && shop.availableBalance !== null) {
+            decryptedShop.availableBalance = decryptAmount(shop.availableBalance);
+        }
+        
+        // Giải mã transactions
+        if (shop.transections && Array.isArray(shop.transections)) {
+            decryptedShop.transections = shop.transections.map(transaction => {
+                try {
+                    return {
+                        ...transaction,
+                        amount: transaction.amount ? decryptAmount(transaction.amount) : transaction.amount
+                    };
+                } catch (error) {
+                    console.error('Error decrypting transaction amount:', error);
+                    return transaction; // Return original transaction if decryption fails
+                }
+            });
+        }
+        
+        return decryptedShop;
+    } catch (error) {
+        console.error('Error in decryptShopData:', error);
+        return shop; // Return original shop data if decryption fails
     }
-    
-    if (shop.address) {
-        decryptedShop.address = decryptAddress(shop.address);
-    }
-    
-    // Giải mã availableBalance
-    if (shop.availableBalance) {
-        decryptedShop.availableBalance = decryptAmount(shop.availableBalance);
-    }
-    
-    // Giải mã transactions
-    if (shop.transections && Array.isArray(shop.transections)) {
-        decryptedShop.transections = shop.transections.map(transaction => ({
-            ...transaction,
-            amount: decryptAmount(transaction.amount)
-        }));
-    }
-    
-    return decryptedShop;
 }
 
 // Giải mã order data

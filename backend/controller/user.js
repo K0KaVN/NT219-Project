@@ -414,7 +414,7 @@ compare the provided password with the stored password for authentication purpos
       const user = await User.findOne({ email }).select("+password");
 
       if (!user) {
-        return next(new ErrorHandler("User not found", 400));
+        return;
       }
 
       const isPasswordValid = await user.comparePassword(password);

@@ -154,7 +154,7 @@ const ShopLogin = () => {
                             <label htmlFor="password"
                                 className='block text-sm font-medium text-gray-700'
                             >
-                                password
+                                Password
                             </label>
                             <div className='mt-1 relative'>
                                 <input type={visible ? "text" : "password"}
