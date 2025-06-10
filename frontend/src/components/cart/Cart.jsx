@@ -163,6 +163,8 @@ const CartSingle = ({ data, quantityChangeHandler, removeFromCartHandler }) => {
             </div>
           </div>
           <RxCross1
+            position="absolute"
+            right={10}
             size={30}
             color="#7d879c"
             className="cursor-pointer ml-auto"
