@@ -21,7 +21,7 @@ const DashboardHero = () => {
     }, [dispatch, seller._id]);
 
     /*  is calculating the available balance of the seller and rounding it to 2 decimal places. */
-    const availableBalance = seller?.availableBalance.toFixed(2);
+    const availableBalance = (seller?.availableBalance && !isNaN(seller.availableBalance)) ? Number(seller.availableBalance).toFixed(2) : '0.00';
 
 
     const columns = [

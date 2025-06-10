@@ -103,7 +103,17 @@ router.post(
             // Create an order for each shop
             for (const [shopId, items] of shopItemsMap) {
                 // Calculate totalPrice for the current shop's items
-                const shopTotalPrice = items.reduce((acc, item) => acc + item.qty * item.price, 0);
+                // Cart items come from frontend with 'discountPrice' field, not 'price'
+                const shopTotalPrice = items.reduce((acc, item) => {
+                    const price = item.discountPrice || item.price || 0; // Handle both discountPrice and price
+                    const qty = item.qty || 1;
+                    return acc + (qty * price);
+                }, 0);
+
+                // Validate that we have a valid shopTotalPrice
+                if (isNaN(shopTotalPrice) || shopTotalPrice <= 0) {
+                    return next(new ErrorHandler(`Invalid total price calculation for shop ${shopId}. Please check cart items.`, 400));
+                }
 
                 // Prepare data for ML-DSA signature
                 // Ensure 'user' object for signature includes '_id' as a string to match schema and verification
@@ -126,10 +136,10 @@ router.post(
 
                 const order = await Order.create({
                     cart: items.map(item => ({ // Ensure cart items match schema for `productId`
-                        productId: item.productId,
+                        productId: item._id || item.productId, // Handle both _id and productId
                         name: item.name,
                         qty: item.qty,
-                        price: item.price,
+                        price: item.discountPrice || item.price, // Handle both discountPrice and price
                         shopId: item.shopId
                     })),
                     shippingAddress,

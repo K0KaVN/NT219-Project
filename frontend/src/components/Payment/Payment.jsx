@@ -7,13 +7,9 @@ import { server } from "../../server";
 import { toast } from "react-toastify";
 
 const Payment = () => {
-    console.log('Payment component is loading...');
-    const [orderData, setOrderData] = useState({}); // Changed from [] to {}
+    const [orderData, setOrderData] = useState({});
     const { user } = useSelector((state) => state.user);
     const navigate = useNavigate();
-    
-    console.log('User from Redux:', user);
-    console.log('OrderData:', orderData);
 
     // States for Payment PIN
     const [paymentPin, setPaymentPin] = useState('');
@@ -23,44 +19,29 @@ const Payment = () => {
     useEffect(() => {
         // Load order data from local storage
         const storedOrderData = localStorage.getItem("latestOrder");
-        console.log('Stored order data from localStorage:', storedOrderData);
         
-        if (storedOrderData) {
+        if (storedOrderData && storedOrderData !== "null" && storedOrderData !== "undefined") {
             try {
                 const parsedData = JSON.parse(storedOrderData);
-                console.log('Parsed order data:', parsedData);
-                setOrderData(parsedData);
+                // Validate parsed data
+                if (parsedData && typeof parsedData === 'object' && parsedData.cart) {
+                    setOrderData(parsedData);
+                } else {
+                    console.warn('Invalid order data in localStorage');
+                    setOrderData({});
+                    toast.error('No valid order data found. Please go back to checkout.');
+                    navigate('/checkout');
+                }
             } catch (error) {
                 console.error('Error parsing order data:', error);
                 setOrderData({});
+                toast.error('Error loading order data. Please go back to checkout.');
+                navigate('/checkout');
             }
         } else {
-            console.log('No order data in localStorage, setting default');
-            // Set default data for testing
-            const defaultOrderData = {
-                cart: [
-                    {
-                        _id: 'test-1',
-                        name: 'Test Product',
-                        qty: 1,
-                        discountPrice: 100,
-                        shopId: 'test-shop'
-                    }
-                ],
-                totalPrice: 110,
-                subTotalPrice: 100,
-                shipping: 10,
-                discountPrice: 0,
-                shippingAddress: {
-                    address1: 'Test Address 1',
-                    address2: 'Test Address 2',
-                    zipCode: '12345',
-                    country: 'VN',
-                    city: 'Ho Chi Minh'
-                }
-            };
-            setOrderData(defaultOrderData);
-            localStorage.setItem("latestOrder", JSON.stringify(defaultOrderData));
+            setOrderData({});
+            toast.error('No order data found. Please go back to checkout.');
+            navigate('/checkout');
         }
 
         // Check user's PIN setup status
@@ -76,12 +57,29 @@ const Payment = () => {
         checkPinStatus();
     }, []);
 
-    // Create the order object to be sent to the backend
-    const order = {
-        cart: orderData?.cart,
-        shippingAddress: orderData?.shippingAddress,
-        user: user ? { _id: user._id } : null, // Ensure user ID is sent as an object property
-        totalPrice: orderData?.totalPrice,
+    // Check if user is authenticated
+    useEffect(() => {
+        if (!user) {
+            toast.error('Please login to access payment page.');
+            navigate('/login');
+        }
+    }, [user, navigate]);
+
+    // Helper function to create order object
+    const createOrderObject = () => {
+        // Validate orderData before creating order
+        if (!orderData || !orderData.cart || !orderData.shippingAddress) {
+            toast.error('Order data is missing. Please go back to checkout.');
+            navigate('/checkout');
+            return null;
+        }
+
+        return {
+            cart: orderData.cart,
+            shippingAddress: orderData.shippingAddress,
+            user: user ? { _id: user._id } : null,
+            totalPrice: orderData.totalPrice,
+        };
     };
 
     // Helper function for PIN validation
@@ -120,13 +118,20 @@ const Payment = () => {
 
         try {
             // Simple payment process - always succeeds (for demo purposes)
+            const totalPrice = orderData?.totalPrice || 0;
             const { data } = await axios.post(
                 `${server}/payment/process`, // This is your mock payment processing endpoint
-                { amount: Math.round(orderData?.totalPrice * 100) },
+                { amount: Math.round(Number(totalPrice) * 100) },
                 config
             );
 
             if (data.success) {
+                const order = createOrderObject();
+                if (!order) {
+                    setLoading(false);
+                    return;
+                }
+                
                 order.paymentInfo = {
                     id: data.payment_id,
                     status: "succeeded",
@@ -173,6 +178,12 @@ const Payment = () => {
             withCredentials: true,
         };
 
+        const order = createOrderObject();
+        if (!order) {
+            setLoading(false);
+            return;
+        }
+        
         order.paymentInfo = {
             type: "Cash On Delivery",
         };
@@ -198,24 +209,32 @@ const Payment = () => {
 
     return (
         <div className="w-full flex flex-col items-center py-8">
-            <div className="w-[90%] 1000px:w-[70%] block 800px:flex">
-                <div className="w-full 800px:w-[65%]">
-                    <PaymentInfo
-                        user={user}
-                        directPaymentHandler={directPaymentHandler}
-                        cashOnDeliveryHandler={cashOnDeliveryHandler}
-                        paymentPin={paymentPin}
-                        setPaymentPin={setPaymentPin}
-                        hasPinSet={hasPinSet}
-                        loading={loading} // Pass loading state to disable buttons
-                    />
+            {/* Show loading state while checking order data */}
+            {Object.keys(orderData).length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+                    <p className="mt-4 text-gray-600">Loading payment information...</p>
                 </div>
-                <div className="w-full 800px:w-[35%] 800px:mt-0 mt-8">
-                    <CartData
-                        orderData={orderData}
-                    />
+            ) : (
+                <div className="w-[90%] 1000px:w-[70%] block 800px:flex">
+                    <div className="w-full 800px:w-[65%]">
+                        <PaymentInfo
+                            user={user}
+                            directPaymentHandler={directPaymentHandler}
+                            cashOnDeliveryHandler={cashOnDeliveryHandler}
+                            paymentPin={paymentPin}
+                            setPaymentPin={setPaymentPin}
+                            hasPinSet={hasPinSet}
+                            loading={loading} // Pass loading state to disable buttons
+                        />
+                    </div>
+                    <div className="w-full 800px:w-[35%] 800px:mt-0 mt-8">
+                        <CartData
+                            orderData={orderData}
+                        />
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
@@ -360,12 +379,12 @@ const PaymentInfo = ({
                             </div>
                             {/* Payment PIN Input for COD */}
                             <div>
-                                <label htmlFor="paymentPin" className="block pb-2">
+                                <label htmlFor="paymentPinCOD" className="block pb-2">
                                     Enter Your Payment PIN
                                 </label>
                                 <input
                                     type="password"
-                                    id="paymentPin"
+                                    id="paymentPinCOD"
                                     value={paymentPin}
                                     onChange={(e) => {
                                         const value = e.target.value;
@@ -405,27 +424,40 @@ const PaymentInfo = ({
 };
 
 const CartData = ({ orderData }) => {
-    const shipping = orderData?.shipping?.toFixed(2);
+    // Helper function to safely format price
+    const formatPrice = (value) => {
+        if (value === null || value === undefined || value === '' || isNaN(Number(value))) {
+            return '0.00';
+        }
+        const numericValue = Number(value);
+        if (!isFinite(numericValue)) {
+            return '0.00';
+        }
+        return numericValue.toFixed(2);
+    };
+    
     return (
         <div className="w-full bg-[#fff] rounded-md p-5 pb-8">
             <div className="flex justify-between">
                 <h3 className="text-[16px] font-[400] text-[#000000a4]">Subtotal:</h3>
-                <h5 className="text-[18px] font-[600]">${orderData?.subTotalPrice?.toFixed(2) || '0.00'}</h5>
+                <h5 className="text-[18px] font-[600]">
+                    ${formatPrice(orderData?.subTotalPrice)}
+                </h5>
             </div>
             <br />
             <div className="flex justify-between">
                 <h3 className="text-[16px] font-[400] text-[#000000a4]">Shipping:</h3>
-                <h5 className="text-[18px] font-[600]">${shipping || '0.00'}</h5>
+                <h5 className="text-[18px] font-[600]">${formatPrice(orderData?.shipping)}</h5>
             </div>
             <br />
             <div className="flex justify-between border-b pb-3">
                 <h3 className="text-[16px] font-[400] text-[#000000a4]">Discount:</h3>
                 <h5 className="text-[18px] font-[600]">
-                    {orderData?.discountPrice ? "$" + orderData.discountPrice.toFixed(2) : "$0.00"}
+                    ${formatPrice(orderData?.discountPrice)}
                 </h5>
             </div>
             <h5 className="text-[18px] font-[600] text-end pt-3">
-                ${orderData?.totalPrice?.toFixed(2) || '0.00'}
+                ${formatPrice(orderData?.totalPrice)}
             </h5>
             <br />
         </div>

@@ -26,7 +26,7 @@ const AdminDashboardMain = () => {
     adminOrders &&
     adminOrders.reduce((acc, item) => acc + item.totalPrice * 0.1, 0);
 
-  const adminBalance = adminEarning?.toFixed(2);
+  const adminBalance = (adminEarning && !isNaN(adminEarning)) ? Number(adminEarning).toFixed(2) : '0.00';
 
   const columns = [
     { field: "id", headerName: "Order ID", minWidth: 150, flex: 0.7 },

@@ -188,14 +188,14 @@ router.post(
         
         if (!isValid) {
           // XÓA cookie cũ nếu không hợp lệ
-          res.cookie("encryptedDeviceId", "", { expires: new Date(0), httpOnly: true, sameSite: "none", secure: true });
-          res.cookie("signature", "", { expires: new Date(0), httpOnly: true, sameSite: "none", secure: true });
+          res.cookie("encryptedDeviceId", "", { expires: new Date(0), httpOnly: true, sameSite: "strict", secure: true });
+          res.cookie("signature", "", { expires: new Date(0), httpOnly: true, sameSite: "strict", secure: true });
           // Sinh deviceId mới
           deviceId = crypto.randomBytes(16).toString('hex');
           encryptedDeviceId = encryptDeviceId(deviceId);
           signature = signDeviceId(encryptedDeviceId);
-          res.cookie("encryptedDeviceId", encryptedDeviceId, { httpOnly: true, sameSite: "none", secure: true, maxAge: 90 * 24 * 60 * 60 * 1000 });
-          res.cookie("signature", signature, { httpOnly: true, sameSite: "none", secure: true, maxAge: 90 * 24 * 60 * 60 * 1000 });
+          res.cookie("encryptedDeviceId", encryptedDeviceId, { httpOnly: true, sameSite: "strict", secure: true, maxAge: 90 * 24 * 60 * 60 * 1000 });
+          res.cookie("signature", signature, { httpOnly: true, sameSite: "strict", secure: true, maxAge: 90 * 24 * 60 * 60 * 1000 });
           cookiesReset = true;
         } else {
           deviceId = decryptDeviceId(encryptedDeviceId);
@@ -207,13 +207,13 @@ router.post(
         signature = signDeviceId(encryptedDeviceId);
         res.cookie("encryptedDeviceId", encryptedDeviceId, {
           httpOnly: true,
-          sameSite: "none",
+          sameSite: "strict",
           secure: true,
           maxAge: 90 * 24 * 60 * 60 * 1000,
         });
         res.cookie("signature", signature, {
           httpOnly: true,
-          sameSite: "none",
+          sameSite: "strict",
           secure: true,
           maxAge: 90 * 24 * 60 * 60 * 1000,
         });

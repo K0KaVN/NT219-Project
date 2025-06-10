@@ -40,7 +40,7 @@ const Checkout = () => {
 
             const orderData = {
                 cart,
-                totalPrice,
+                totalPrice: parseFloat(totalPrice), // Ensure totalPrice is a number
                 subTotalPrice,
                 shipping,
                 discountPrice,
@@ -99,7 +99,15 @@ const Checkout = () => {
 
     const discountPercentenge = couponCodeData ? discountPrice : 0; // Ensure it's a number for calculations
 
-    const totalPrice = (subTotalPrice + shipping - discountPercentenge).toFixed(2); // Final total price
+    // Helper function to safely calculate total price
+    const calculateTotalPrice = () => {
+        const sub = Number(subTotalPrice) || 0;
+        const ship = Number(shipping) || 0;
+        const discount = Number(discountPercentenge) || 0;
+        return (sub + ship - discount).toFixed(2);
+    };
+
+    const totalPrice = calculateTotalPrice(); // Final total price
 
     // console.log(discountPercentenge); // Removed console.log
 
@@ -317,22 +325,34 @@ const CartData = ({
     setCouponCode,
     discountPercentenge,
 }) => {
+    // Helper function to safely format price
+    const formatPrice = (value) => {
+        if (value === null || value === undefined || value === '' || isNaN(Number(value))) {
+            return '0.00';
+        }
+        const numericValue = Number(value);
+        if (!isFinite(numericValue)) {
+            return '0.00';
+        }
+        return numericValue.toFixed(2);
+    };
+
     return (
         <div className="w-full bg-[#fff] rounded-md p-5 pb-8">
             <div className="flex justify-between">
                 <h3 className="text-[16px] font-[400] text-[#000000a4]">Subtotal:</h3>
-                <h5 className="text-[18px] font-[600]">${subTotalPrice.toFixed(2)}</h5> {/* Ensure price is formatted */}
+                <h5 className="text-[18px] font-[600]">${formatPrice(subTotalPrice)}</h5>
             </div>
             <br />
             <div className="flex justify-between">
                 <h3 className="text-[16px] font-[400] text-[#000000a4]">Shipping:</h3>
-                <h5 className="text-[18px] font-[600]">${shipping.toFixed(2)}</h5>
+                <h5 className="text-[18px] font-[600]">${formatPrice(shipping)}</h5>
             </div>
             <br />
             <div className="flex justify-between border-b pb-3">
                 <h3 className="text-[16px] font-[400] text-[#000000a4]">Discount:</h3>
                 <h5 className="text-[18px] font-[600]">
-                    - {discountPercentenge ? "$" + discountPercentenge.toFixed(2) : "$0.00"} {/* Format discount */}
+                    - ${formatPrice(discountPercentenge || 0)}
                 </h5>
             </div>
             <h5 className="text-[18px] font-[600] text-end pt-3">${totalPrice}</h5>

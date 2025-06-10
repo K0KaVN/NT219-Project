@@ -91,7 +91,7 @@ const ProductDetails = ({ data }) => {
 
   const avg = totalRatings / totalReviewsLength || 0;
 
-  const averageRating = avg.toFixed(2);
+  const averageRating = (avg && !isNaN(avg)) ? Number(avg).toFixed(2) : '0.00';
 
   return (
     <div className="bg-white">
