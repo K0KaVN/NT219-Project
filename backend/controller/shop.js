@@ -46,7 +46,7 @@ router.post("/create-shop", upload.single("file"), async (req, res, next) => {
       avatar: fileUrl,
       address: req.body.address,
       phoneNumber: req.body.phoneNumber,
-      zipCode: req.body.zipCode,
+      province: req.body.province,
     };
 
     const activationToken = createActivationToken(seller);
@@ -93,7 +93,7 @@ router.post(
       if (!newSeller) {
         return next(new ErrorHandler("Invalid token", 400));
       }
-      const { name, email, password, avatar, zipCode, address, phoneNumber } =
+      const { name, email, password, avatar, province, address, phoneNumber } =
         newSeller;
 
       let seller = await Shop.findOne({ email });
@@ -107,7 +107,7 @@ router.post(
         email,
         avatar,
         password,
-        zipCode,
+        province,
         address,
         phoneNumber,
       });
@@ -420,7 +420,7 @@ router.put(
   isSeller,
   catchAsyncErrors(async (req, res, next) => {
     try {
-      const { name, description, address, phoneNumber, zipCode } = req.body;
+      const { name, description, address, phoneNumber, province } = req.body;
 
       const shop = await Shop.findOne(req.seller._id);
 
@@ -432,7 +432,7 @@ router.put(
       shop.description = description;
       shop.address = address;
       shop.phoneNumber = phoneNumber;
-      shop.zipCode = zipCode;
+      shop.province = province;
 
       await shop.save();
 
@@ -535,6 +535,31 @@ router.delete(
         success: true,
         seller,
       });
+    } catch (error) {
+      return next(new ErrorHandler(error.message, 500));
+    }
+  })
+);
+
+// Migration endpoint to convert zipCode to province (admin only)
+router.post(
+  "/migrate-zipcode-to-province",
+  isAuthenticated,
+  isAdmin("Admin"),
+  catchAsyncErrors(async (req, res, next) => {
+    try {
+      const { migrateShopsZipCodeToProvince } = require('../utils/shopMigration');
+      const result = await migrateShopsZipCodeToProvince();
+      
+      if (result.success) {
+        res.status(200).json({
+          success: true,
+          message: `Migration completed successfully. ${result.migratedCount} shops updated.`,
+          migratedCount: result.migratedCount,
+        });
+      } else {
+        return next(new ErrorHandler(`Migration failed: ${result.error}`, 500));
+      }
     } catch (error) {
       return next(new ErrorHandler(error.message, 500));
     }

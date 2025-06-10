@@ -6,6 +6,7 @@ import axios from "axios";
 import { server } from "../../server";
 import { toast } from "react-toastify";
 import { RxAvatar } from 'react-icons/rx';
+import { vietnameseProvinces } from "../../utils/vietnameseProvinces";
 
 
 const ShopCreate = () => {
@@ -15,7 +16,7 @@ const ShopCreate = () => {
     const [name, setName] = useState("");
     const [phoneNumber, setPhoneNumber] = useState();
     const [address, setAddress] = useState("");
-    const [zipCode, setZipCode] = useState();
+    const [province, setProvince] = useState("");
     const [avatar, setAvatar] = useState();
     const [password, setPassword] = useState("");
     const [visible, setVisible] = useState(false);
@@ -33,7 +34,7 @@ const ShopCreate = () => {
         newForm.append("name", name);
         newForm.append("email", email);
         newForm.append("password", password);
-        newForm.append("zipCode", zipCode);
+        newForm.append("province", province);
         newForm.append("address", address);
         newForm.append("phoneNumber", phoneNumber);
 
@@ -45,7 +46,7 @@ const ShopCreate = () => {
                 setEmail("");
                 setPassword("");
                 setAvatar();
-                setZipCode();
+                setProvince("");
                 setAddress("");
                 setPhoneNumber();
 
@@ -156,24 +157,29 @@ const ShopCreate = () => {
                             </div>
                         </div>
 
-                        {/* ZipCode */}
-
+                        {/* Province */}
                         <div>
                             <label
-                                htmlFor="email"
+                                htmlFor="province"
                                 className="block text-sm font-medium text-gray-700"
                             >
-                                Zip Code
+                                Province
                             </label>
                             <div className="mt-1">
-                                <input
-                                    type="number"
-                                    name="zipcode"
+                                <select
+                                    name="province"
                                     required
-                                    value={zipCode}
-                                    onChange={(e) => setZipCode(e.target.value)}
+                                    value={province}
+                                    onChange={(e) => setProvince(e.target.value)}
                                     className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                />
+                                >
+                                    <option value="">Choose your province</option>
+                                    {vietnameseProvinces.map((provinceName) => (
+                                        <option key={provinceName} value={provinceName}>
+                                            {provinceName}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 
