@@ -274,7 +274,7 @@ const AllOrders = () => {
         orders.forEach((item) => {
             row.push({
                 id: item._id,
-                itemsQty: item.cart.length,
+                itemsQty: item.cart.reduce((acc, cartItem) => acc + cartItem.qty, 0),
                 total: "US$ " + item.totalPrice,
                 status: item.status,
             });
@@ -361,7 +361,7 @@ const AllRefundOrders = () => {
         eligibleOrders.forEach((item) => {
             row.push({
                 id: item._id,
-                itemsQty: item.cart.length,
+                itemsQty: item.cart.reduce((acc, cartItem) => acc + cartItem.qty, 0),
                 total: "US$ " + item.totalPrice,
                 status: item.status,
             });
@@ -444,7 +444,7 @@ const TrackOrder = () => {
         orders.forEach((item) => {
             row.push({
                 id: item._id,
-                itemsQty: item.cart.length,
+                itemsQty: item.cart.reduce((acc, cartItem) => acc + cartItem.qty, 0),
                 total: "US$ " + item.totalPrice,
                 status: item.status,
             });
@@ -570,8 +570,6 @@ const Address = () => {
                     "VietNam", // Country is always VietNam
                     province,
                     address,
-                    "", // address2 is empty
-                    null, // zipCode is null
                     addressType
                 )
             );
@@ -720,12 +718,12 @@ const Address = () => {
                         </div>
                         <div className="pl-8 flex items-center">
                             <h6 className="text-[12px] 800px:text-[unset]">
-                                {item.address1 || item.address} {/* Support both old and new address format */}
+                                {item.address}
                             </h6>
                         </div>
                         <div className="pl-8 flex items-center">
                             <h6 className="text-[12px] 800px:text-[unset]">
-                                {item.city || item.province}, {item.country}
+                                {item.province}, {item.country}
                             </h6>
                         </div>
                         <div className="pl-8 flex items-center">

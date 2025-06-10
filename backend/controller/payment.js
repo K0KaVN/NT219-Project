@@ -22,11 +22,9 @@ const prepareOrderDataForSignature = (order) => {
         })).filter(item => item.productId !== undefined),
         totalPrice: order.totalPrice,
         shippingAddress: {
-            address1: order.shippingAddress.address1 || null,
-            address2: order.shippingAddress.address2 || null,
-            zipCode: order.shippingAddress.zipCode || null,
+            address: order.shippingAddress.address || null,
+            province: order.shippingAddress.province || null,
             country: order.shippingAddress.country || null,
-            city: order.shippingAddress.city || null,
         },
         paymentInfo: {
             id: order.paymentInfo.id || null,

@@ -27,26 +27,17 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: "VietNam", // Default to VietNam
       },
-      city: {
-        type: String, // Can be used for province or city
-      },
       province: {
-        type: String, // New field for Vietnamese provinces
-      },
-      address1: {
-        type: String,
-      },
-      address2: {
-        type: String,
+        type: String, // Vietnamese provinces
+        required: true,
       },
       address: {
-        type: String, // New unified address field
-      },
-      zipCode: {
-        type: Number,
+        type: String, // Detailed address
+        required: true,
       },
       addressType: {
         type: String,
+        required: true,
       },
     },
   ],

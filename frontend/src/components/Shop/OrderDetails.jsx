@@ -123,12 +123,9 @@ const OrderDetails = () => {
           <h4 className="pt-3 text-[20px] font-[600]">Shipping Address:</h4>
 
           <h4 className="pt-3 text-[20px]">
-            {data?.shippingAddress.address1 +
-              " " +
-              data?.shippingAddress.address2}
+            {data?.shippingAddress.address}
           </h4>
-          <h4 className="text-[20px]">{data?.shippingAddress.country}</h4>
-          <h4 className=" text-[20px]">{data?.shippingAddress.city}</h4>
+          <h4 className="text-[20px]">{data?.shippingAddress.province}, {data?.shippingAddress.country}</h4>
 
           <h4 className=" text-[20px]">{data?.user?.phoneNumber}</h4>
         </div>

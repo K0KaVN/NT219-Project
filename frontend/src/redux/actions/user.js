@@ -107,7 +107,7 @@ export const updateUserInformation =
 
 // update user address
 export const updatUserAddress =
-  (country, city, address1, address2, zipCode, addressType) =>
+  (country, province, address, addressType) =>
   async (dispatch) => {
     try {
       dispatch({
@@ -118,10 +118,8 @@ export const updatUserAddress =
         `${server}/user/update-user-addresses`,
         {
           country,
-          city,
-          address1,
-          address2,
-          zipCode,
+          province, // Changed from city to province
+          address, // Simplified to just address
           addressType,
         },
         { withCredentials: true }

@@ -6,7 +6,7 @@ import { CiMoneyBill } from "react-icons/ci";
 import { Link } from "react-router-dom";
 import { HiOutlineUserGroup } from "react-icons/hi";
 import { BsHandbag } from "react-icons/bs";
-import { AiOutlineSetting } from "react-icons/ai";
+import { GoArrowLeft } from "react-icons/go";
 
 const AdminSideBar = ({ active }) => {
   return (
@@ -107,7 +107,7 @@ const AdminSideBar = ({ active }) => {
 
       <div className="w-full flex items-center p-4">
         <Link to="/profile" className="w-full flex items-center">
-          <AiOutlineSetting
+          <GoArrowLeft
             size={30}
             color={`${active === 8 ? "crimson" : "#555"}`}
           />
@@ -116,7 +116,7 @@ const AdminSideBar = ({ active }) => {
               active === 8 ? "text-[crimson]" : "text-[#555]"
             }`}
           >
-            Settings
+            Return
           </h5>
         </Link>
       </div>

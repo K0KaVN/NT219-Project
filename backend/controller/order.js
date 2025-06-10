@@ -36,14 +36,11 @@ const prepareOrderDataForSignature = (order) => {
         totalPrice: order.totalPrice,
 
         // Shipping address: Include all fields that are critical for the order
-        // Assuming shippingAddress is an object and its structure is consistent
+        // Simplified address structure
         shippingAddress: {
-            address1: order.shippingAddress.address1 || null,
-            address2: order.shippingAddress.address2 || null,
-            zipCode: order.shippingAddress.zipCode || null,
+            address: order.shippingAddress.address || null,
+            province: order.shippingAddress.province || null,
             country: order.shippingAddress.country || null,
-            city: order.shippingAddress.city || null,
-            // Add any other specific fields from shippingAddress you want to include
         },
 
         // Payment info: Include critical payment-related fields for order integrity
@@ -357,8 +354,8 @@ router.put(
                     order.paymentInfo.status = "Succeeded";
                 }
                 const serviceCharge = order.totalPrice * 0.1; // 10% service charge
-                // Assuming req.seller.id is available from the isSeller middleware
-                await updateSellerInfo(req.seller.id, order.totalPrice - serviceCharge);
+                // Use req.seller._id instead of req.seller.id
+                await updateSellerInfo(req.seller._id, order.totalPrice - serviceCharge);
             }
 
             await order.save({ validateBeforeSave: false });

@@ -28,11 +28,9 @@ const Checkout = () => {
             toast.error("Please choose your delivery address!")
         } else {
             const shippingAddress = {
-                address1: address, // Map to address1 for backward compatibility
-                address2: "",
-                zipCode: null,
+                address: address,
+                province: province,
                 country: "VietNam",
-                city: province, // Map province to city for backward compatibility
             };
 
             const orderData = {
@@ -255,8 +253,8 @@ const ShippingInfo = ({
                                     value={item.addressType}
                                     // Set all address fields when a saved address is selected
                                     onClick={() => {
-                                        setAddress(item.address1 || item.address || "");
-                                        setProvince(item.city || item.province || "");
+                                        setAddress(item.address || "");
+                                        setProvince(item.province || "");
                                     }}
                                 />
                                 <h2>{item.addressType}</h2>
