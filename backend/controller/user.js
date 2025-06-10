@@ -13,6 +13,7 @@ const Otp = require("../model/otp");
 const router = express.Router();
 const { encryptDeviceId, decryptDeviceId, signDeviceId, verifyDeviceId } = require('../utils/deviceIdSecurity');
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 const PUBLIC_KEY = process.env.EC_PUBLIC_KEY && process.env.EC_PUBLIC_KEY.trim();
 
 // --- New route: Set or Update Payment PIN ---
@@ -249,7 +250,7 @@ router.post(
       }
       // Tạo OTP 6 số
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+      const hashedOtp = await bcrypt.hash(otp, 10);
       await Otp.deleteMany({ email });
       await Otp.create({
         email,
@@ -298,9 +299,9 @@ router.post(
       if (!record || record.expiresAt < Date.now()) {
         return next(new ErrorHandler("OTP invalid or expired", 400));
       }
-      const hashedInputOtp = crypto.createHash("sha256").update(otp).digest("hex");
-      if (hashedInputOtp !== record.otp) {
-        return next(new ErrorHandler("OTP invalid or expired", 400));
+      const isOtpValid = await bcrypt.compare(otp, record.otp);
+      if (!isOtpValid) {
+      return next(new ErrorHandler("OTP invalid or expired", 400));
       }
       await Otp.deleteOne({ email });
       const user = await User.findOne({ email });
