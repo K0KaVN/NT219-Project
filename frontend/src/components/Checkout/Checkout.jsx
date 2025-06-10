@@ -240,7 +240,7 @@ const ShippingInfo = ({
                 className="text-[18px] cursor-pointer inline-block"
                 onClick={() => setUserInfo(!userInfo)}
             >
-                Choose From saved address
+                Choose from saved address
             </h5>
             {userInfo && (
                 <div>
