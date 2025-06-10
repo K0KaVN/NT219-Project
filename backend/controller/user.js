@@ -179,25 +179,15 @@ router.post(
   "/login-user",
   catchAsyncErrors(async (req, res, next) => {
     try {
-      // Add debug logging for login process
-      console.log('=== Login Process Debug ===');
-      console.log('Existing cookies:', { 
-        encryptedDeviceId: req.cookies.encryptedDeviceId ? 'present' : 'missing',
-        signature: req.cookies.signature ? 'present' : 'missing'
-      });
-      
       let deviceId, encryptedDeviceId, signature;
       let cookiesReset = false;
       // ƯU TIÊN LẤY TỪ COOKIE
       if (req.cookies.encryptedDeviceId && req.cookies.signature) {
         encryptedDeviceId = req.cookies.encryptedDeviceId;
         signature = req.cookies.signature;
-        console.log('Verifying existing cookies...');
         const isValid = verifyDeviceId(encryptedDeviceId, signature, PUBLIC_KEY);
-        console.log('Existing cookie validation result:', isValid);
         
         if (!isValid) {
-          console.log('Invalid cookies detected, resetting...');
           // XÓA cookie cũ nếu không hợp lệ
           res.cookie("encryptedDeviceId", "", { expires: new Date(0), httpOnly: true, sameSite: "none", secure: true });
           res.cookie("signature", "", { expires: new Date(0), httpOnly: true, sameSite: "none", secure: true });
@@ -205,21 +195,17 @@ router.post(
           deviceId = crypto.randomBytes(16).toString('hex');
           encryptedDeviceId = encryptDeviceId(deviceId);
           signature = signDeviceId(encryptedDeviceId);
-          console.log('Generated new deviceId and signature');
           res.cookie("encryptedDeviceId", encryptedDeviceId, { httpOnly: true, sameSite: "none", secure: true, maxAge: 90 * 24 * 60 * 60 * 1000 });
           res.cookie("signature", signature, { httpOnly: true, sameSite: "none", secure: true, maxAge: 90 * 24 * 60 * 60 * 1000 });
           cookiesReset = true;
         } else {
           deviceId = decryptDeviceId(encryptedDeviceId);
-          console.log('Using existing valid deviceId');
         }
       } else {
         // Nếu chưa có, sinh mới và set cookie
-        console.log('No existing cookies, generating new deviceId');
         deviceId = crypto.randomBytes(16).toString('hex');
         encryptedDeviceId = encryptDeviceId(deviceId);
         signature = signDeviceId(encryptedDeviceId);
-        console.log('Setting new cookies with sameSite=none');
         res.cookie("encryptedDeviceId", encryptedDeviceId, {
           httpOnly: true,
           sameSite: "none",
@@ -278,9 +264,7 @@ router.post(
         message: `Your OTP code is: ${otp}`,
       });
       // Trả về encryptedDeviceId và signature cho frontend lưu lại (nếu vừa reset)
-      console.log('Login completed. cookiesReset:', cookiesReset);
       if (cookiesReset) {
-        console.log('Returning with device verification needed');
         return res.status(200).json({ 
           success: true, 
           message: "OTP sent to your email", 
@@ -289,7 +273,6 @@ router.post(
           needsDeviceVerification: true 
         });
       } else {
-        console.log('Returning without device verification');
         return res.status(200).json({ 
           success: true, 
           message: "OTP sent to your email",
@@ -317,50 +300,22 @@ router.post(
         req.socket?.remoteAddress ||
         null;
         
-      // Add debug logging
-      console.log('=== OTP Verification Debug ===');
-      console.log('Cookies received:', { 
-        encryptedDeviceId: req.cookies.encryptedDeviceId ? 'present' : 'missing',
-        signature: req.cookies.signature ? 'present' : 'missing'
-      });
-      console.log('Body received:', { 
-        encryptedDeviceId: bodyEncryptedDeviceId ? 'present' : 'missing',
-        signature: bodySignature ? 'present' : 'missing',
-        email: email ? 'present' : 'missing',
-        otp: otp ? 'present' : 'missing',
-        userAgent: userAgent ? 'present' : 'missing'
-      });
-      console.log('Final values used:', {
-        encryptedDeviceId: encryptedDeviceId ? 'present' : 'missing',
-        signature: signature ? 'present' : 'missing'
-      });
-      console.log('PUBLIC_KEY:', PUBLIC_KEY ? PUBLIC_KEY.substring(0, 20) + '...' : 'NOT SET');
-      
       if (!encryptedDeviceId || !signature) {
-        console.log('ERROR: Missing device info');
         return next(new ErrorHandler("Missing device info. Please try logging in again.", 400));
       }
       // Kiểm tra public key hợp lệ
       if (!PUBLIC_KEY || !/^04[0-9a-fA-F]{128}$/.test(PUBLIC_KEY)) {
-        console.log('ERROR: Invalid public key format');
         return next(new ErrorHandler("EC_PUBLIC_KEY format invalid", 500));
       }
       
-      console.log('Verifying deviceId signature...');
       const isValid = verifyDeviceId(encryptedDeviceId, signature, PUBLIC_KEY);
-      console.log('Signature verification result:', isValid);
       
       // TEMPORARY WORKAROUND: Skip signature verification for now
       // TODO: Fix signature verification issue with elliptic library
       const bypassSignatureCheck = true;
       
       if (!isValid && !bypassSignatureCheck) {
-        console.log('ERROR: DeviceId signature invalid');
         return next(new ErrorHandler("DeviceId signature invalid", 400));
-      }
-      
-      if (bypassSignatureCheck) {
-        console.log('WARNING: Signature check bypassed - using OTP only for security');
       }
       const deviceId = decryptDeviceId(encryptedDeviceId);
       const record = await Otp.findOne({ email });
@@ -373,11 +328,18 @@ router.post(
       }
       await Otp.deleteOne({ email });
       const user = await User.findOne({ email });
-      if (
-        !user.devices?.some(
-          (d) => d.deviceId === deviceId && d.userAgent === userAgent
-        )
-      ) {
+      
+      // Tìm thiết bị hiện có dựa trên deviceId và userAgent (không cần IP)
+      const existingDeviceIndex = user.devices?.findIndex(
+        (d) => d.deviceId === deviceId && d.userAgent === userAgent
+      );
+      
+      if (existingDeviceIndex !== -1) {
+        // Cập nhật IP và lastLogin cho thiết bị hiện có
+        user.devices[existingDeviceIndex].ip = ip;
+        user.devices[existingDeviceIndex].lastLogin = new Date();
+      } else {
+        // Thêm thiết bị mới
         user.devices = user.devices || [];
         user.devices.push({
           deviceId,
@@ -385,8 +347,8 @@ router.post(
           ip,
           lastLogin: new Date(),
         });
-        await user.save();
       }
+      await user.save();
       sendToken(user, 201, res);
     } catch (error) {
       return next(new ErrorHandler(error.message, 500));

@@ -187,9 +187,9 @@ router.post(
         req.socket?.remoteAddress ||
         null;
         
-      // Kiểm tra thiết bị quen
+      // Kiểm tra thiết bị quen (bỏ kiểm tra IP)
       const knownDevice = user.devices?.find(
-        (d) => d.deviceId === deviceId && d.userAgent === userAgent && d.ip === ip
+        (d) => d.deviceId === deviceId && d.userAgent === userAgent
       );
       if (knownDevice) {
         return sendShopToken(user, 201, res, { skipOtp: true });
@@ -288,11 +288,18 @@ router.post(
       }
       await Otp.deleteOne({ email });
       const user = await Shop.findOne({ email });
-      if (
-        !user.devices?.some(
-          (d) => d.deviceId === deviceId && d.userAgent === userAgent
-        )
-      ) {
+      
+      // Tìm thiết bị hiện có dựa trên deviceId và userAgent (không cần IP)
+      const existingDeviceIndex = user.devices?.findIndex(
+        (d) => d.deviceId === deviceId && d.userAgent === userAgent
+      );
+      
+      if (existingDeviceIndex !== -1) {
+        // Cập nhật IP và lastLogin cho thiết bị hiện có
+        user.devices[existingDeviceIndex].ip = ip;
+        user.devices[existingDeviceIndex].lastLogin = new Date();
+      } else {
+        // Thêm thiết bị mới
         user.devices = user.devices || [];
         user.devices.push({
           deviceId,
@@ -300,8 +307,8 @@ router.post(
           ip,
           lastLogin: new Date(),
         });
-        await user.save();
       }
+      await user.save();
       sendShopToken(user, 201, res);
     } catch (error) {
       return next(new ErrorHandler(error.message, 500));
