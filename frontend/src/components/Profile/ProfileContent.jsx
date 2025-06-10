@@ -16,7 +16,6 @@ import { RxCross1 } from 'react-icons/rx'
 import { MdTrackChanges } from "react-icons/md";
 import { toast } from "react-toastify";
 import axios from 'axios';
-import { Country, State } from "country-state-city";
 import { getAllOrdersOfUser } from '../../redux/actions/order';
 import SecuritySettings from './SecuritySettings';
 
@@ -546,14 +545,26 @@ const ChangePassword = () => {
 // Address component
 const Address = () => {
     const [open, setOpen] = useState(false);
-    const [country, setCountry] = useState("");
-    const [city, setCity] = useState("");
-    const [zipCode, setZipCode] = useState();
-    const [address1, setAddress1] = useState("");
-    const [address2, setAddress2] = useState("");
+    const [province, setProvince] = useState("");
+    const [address, setAddress] = useState("");
     const [addressType, setAddressType] = useState("");
     const { user } = useSelector((state) => state.user);
     const dispatch = useDispatch();
+
+    // Vietnamese provinces list
+    const vietnameseProvinces = [
+        "An Giang", "Bà Rịa - Vũng Tàu", "Bắc Giang", "Bắc Kạn", "Bạc Liêu", "Bắc Ninh",
+        "Bến Tre", "Bình Định", "Bình Dương", "Bình Phước", "Bình Thuận", "Cà Mau",
+        "Cao Bằng", "Đắk Lắk", "Đắk Nông", "Điện Biên", "Đồng Nai", "Đồng Tháp",
+        "Gia Lai", "Hà Giang", "Hà Nam", "Hà Tĩnh", "Hải Dương", "Hậu Giang",
+        "Hòa Bình", "Hưng Yên", "Khánh Hòa", "Kiên Giang", "Kon Tum", "Lai Châu",
+        "Lâm Đồng", "Lạng Sơn", "Lào Cai", "Long An", "Nam Định", "Nghệ An",
+        "Ninh Bình", "Ninh Thuận", "Phú Thọ", "Quảng Bình", "Quảng Nam", "Quảng Ngãi",
+        "Quảng Ninh", "Quảng Trị", "Sóc Trăng", "Sơn La", "Tây Ninh", "Thái Bình",
+        "Thái Nguyên", "Thanh Hóa", "Thừa Thiên Huế", "Tiền Giang", "Trà Vinh",
+        "Tuyên Quang", "Vĩnh Long", "Vĩnh Phúc", "Yên Bái", "Phú Yên",
+        "Cần Thơ", "Đà Nẵng", "Hải Phòng", "Hà Nội", "TP Hồ Chí Minh"
+    ];
 
     const addressTypeData = [
         { name: "Default" },
@@ -564,25 +575,22 @@ const Address = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (addressType === "" || country === "" || city === "") {
+        if (!province || !address || !addressType) {
             toast.error("Please fill all the fields!");
         } else {
             dispatch(
                 updatUserAddress(
-                    country,
-                    city,
-                    address1,
-                    address2,
-                    zipCode,
+                    "VietNam", // Country is always VietNam
+                    province,
+                    address,
+                    "", // address2 is empty
+                    null, // zipCode is null
                     addressType
                 )
             );
             setOpen(false);
-            setCountry("");
-            setCity("");
-            setAddress1("");
-            setAddress2("");
-            setZipCode(null);
+            setProvince("");
+            setAddress("");
             setAddressType("");
         }
     }
@@ -613,87 +621,47 @@ const Address = () => {
                                     <div className="w-full block p-4">
                                         <div className="w-full pb-2">
                                             <label className="block pb-2">Country</label>
-                                            <select
-                                                name=""
-                                                id=""
-                                                value={country}
-                                                onChange={(e) => setCountry(e.target.value)}
-                                                className="w-[95%] border h-[40px] rounded-[5px]"
-                                            >
-                                                <option value=""
-                                                    className='block border pb-2'
-                                                >
-                                                    Choose your country
-                                                </option>
-                                                {
-                                                    Country &&
-                                                    Country.getAllCountries().map((item) => (
-                                                        <option
-                                                            className="block pb-2"
-                                                            key={item.isoCode}
-                                                            value={item.isoCode}
-                                                        >
-                                                            {item.name}
-                                                        </option>
-                                                    ))}
-                                            </select>
+                                            <input
+                                                type="text"
+                                                value="VietNam"
+                                                className="w-[95%] border h-[40px] rounded-[5px] px-3 bg-gray-100"
+                                                readOnly
+                                            />
                                         </div>
 
                                         <div className="w-full pb-2">
-                                            <label className="block pb-2">Choose your City</label>
+                                            <label className="block pb-2">Choose your Province</label>
                                             <select
                                                 name=""
                                                 id=""
-                                                value={city}
-                                                onChange={(e) => setCity(e.target.value)}
+                                                value={province}
+                                                onChange={(e) => setProvince(e.target.value)}
                                                 className="w-[95%] border h-[40px] rounded-[5px]"
                                             >
                                                 <option value="" className="block border pb-2">
-                                                    Choose your city
+                                                    Choose your province
                                                 </option>
-                                                {State &&
-                                                    State.getStatesOfCountry(country).map((item) => (
-                                                        <option
-                                                            className="block pb-2"
-                                                            key={item.isoCode}
-                                                            value={item.isoCode}
-                                                        >
-                                                            {item.name}
-                                                        </option>
-                                                    ))}
+                                                {vietnameseProvinces.map((provinceName) => (
+                                                    <option
+                                                        className="block pb-2"
+                                                        key={provinceName}
+                                                        value={provinceName}
+                                                    >
+                                                        {provinceName}
+                                                    </option>
+                                                ))}
                                             </select>
                                         </div>
 
                                         <div className="w-full pb-2">
-                                            <label className="block pb-2">Address 1</label>
+                                            <label className="block pb-2">Address</label>
                                             <input
-                                                type="address"
+                                                type="text"
                                                 className={`${styles.input}`}
                                                 required
-                                                value={address1}
-                                                onChange={(e) => setAddress1(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className="w-full pb-2">
-                                            <label className="block pb-2">Address 2</label>
-                                            <input
-                                                type="address"
-                                                className={`${styles.input}`}
-                                                required
-                                                value={address2}
-                                                onChange={(e) => setAddress2(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className="w-full pb-2">
-                                            <label className="block pb-2">Zip Code</label>
-                                            <input
-                                                type="number"
-                                                className={`${styles.input}`}
-                                                required
-                                                value={zipCode}
-                                                onChange={(e) => setZipCode(e.target.value)}
+                                                value={address}
+                                                onChange={(e) => setAddress(e.target.value)}
+                                                placeholder="Enter your detailed address"
                                             />
                                         </div>
 
@@ -765,7 +733,12 @@ const Address = () => {
                         </div>
                         <div className="pl-8 flex items-center">
                             <h6 className="text-[12px] 800px:text-[unset]">
-                                {item.address1} {item.address2}
+                                {item.address1 || item.address} {/* Support both old and new address format */}
+                            </h6>
+                        </div>
+                        <div className="pl-8 flex items-center">
+                            <h6 className="text-[12px] 800px:text-[unset]">
+                                {item.city || item.province}, {item.country}
                             </h6>
                         </div>
                         <div className="pl-8 flex items-center">

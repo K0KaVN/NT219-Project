@@ -509,8 +509,20 @@ router.put(
       if (existsAddress) {
         Object.assign(existsAddress, req.body);
       } else {
+        // Create new address object with support for both old and new formats
+        const newAddress = {
+          country: req.body.country || "VietNam",
+          city: req.body.city, // This can be province name for backward compatibility
+          province: req.body.city, // Store province in the new field as well
+          address1: req.body.address1,
+          address2: req.body.address2 || "",
+          address: req.body.address1, // Store in the new unified address field
+          zipCode: req.body.zipCode,
+          addressType: req.body.addressType,
+        };
+        
         // add the new address to the array
-        user.addresses.push(req.body);
+        user.addresses.push(newAddress);
       }
 
       await user.save();
