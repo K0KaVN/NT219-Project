@@ -118,7 +118,8 @@ router.post("/create-user", async (req, res, next) => {
       await sendMail({
         email: user.email,
         subject: "Activate your account",
-        message: `Hello  ${user.name}, please click on the link to activate your account ${activationUrl} `,
+        message: `Hello  ${user.name}, please click on the link to activate your account
+        ${activationUrl} `,
       });
       res.status(201).json({
         success: true,
@@ -185,9 +186,19 @@ router.post(
       if (req.cookies.encryptedDeviceId && req.cookies.signature) {
         encryptedDeviceId = req.cookies.encryptedDeviceId;
         signature = req.cookies.signature;
+        
+        // Debug device verification
+        console.log('🔍 Device Verification Debug:');
+        console.log('- encryptedDeviceId length:', encryptedDeviceId ? encryptedDeviceId.length : 'null');
+        console.log('- signature length:', signature ? signature.length : 'null');
+        console.log('- PUBLIC_KEY exists:', !!PUBLIC_KEY);
+        console.log('- PUBLIC_KEY length:', PUBLIC_KEY ? PUBLIC_KEY.length : 'null');
+        
         const isValid = verifyDeviceId(encryptedDeviceId, signature, PUBLIC_KEY);
+        console.log('- Verification result:', isValid);
         
         if (!isValid) {
+          console.log('⚠️  Device signature verification FAILED - generating new deviceId');
           // XÓA cookie cũ nếu không hợp lệ
           res.cookie("encryptedDeviceId", "", { expires: new Date(0), httpOnly: true, sameSite: "strict", secure: true });
           res.cookie("signature", "", { expires: new Date(0), httpOnly: true, sameSite: "strict", secure: true });
@@ -199,9 +210,11 @@ router.post(
           res.cookie("signature", signature, { httpOnly: true, sameSite: "strict", secure: true, maxAge: 90 * 24 * 60 * 60 * 1000 });
           cookiesReset = true;
         } else {
+          console.log('✅ Device signature verification SUCCESS - reusing existing deviceId');
           deviceId = decryptDeviceId(encryptedDeviceId);
         }
       } else {
+        console.log('🆕 No existing cookies - generating new deviceId');
         // Nếu chưa có, sinh mới và set cookie
         deviceId = crypto.randomBytes(16).toString('hex');
         encryptedDeviceId = encryptDeviceId(deviceId);
@@ -235,10 +248,27 @@ router.post(
       req.socket?.remoteAddress ||
       null;
       // Kiểm tra thiết bị quen
+      console.log('🔍 Device Matching Debug:');
+      console.log('- Current deviceId:', deviceId);
+      console.log('- Current userAgent:', userAgent);
+      console.log('- Current IP:', ip);
+      console.log('- User devices count:', user.devices ? user.devices.length : 0);
+      
+      if (user.devices && user.devices.length > 0) {
+        console.log('- Stored devices:');
+        user.devices.forEach((device, index) => {
+          console.log(`  [${index}] deviceId: ${device.deviceId}, userAgent: ${device.userAgent ? device.userAgent.substring(0, 50) + '...' : 'null'}, IP: ${device.ip}`);
+        });
+      }
+      
       const knownDevice = user.devices?.find(
         (d) => d.deviceId === deviceId && d.userAgent === userAgent && d.ip === ip
       );
+      
+      console.log('- Known device found:', !!knownDevice);
+      
       if (knownDevice) {
+        console.log('✅ Known device detected - skipping OTP');
         return sendToken(user, 201, res, { skipOtp: true });
       }
       // Nếu chưa có thiết bị, kiểm tra password và gửi OTP như cũ

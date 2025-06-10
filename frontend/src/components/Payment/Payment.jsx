@@ -319,7 +319,7 @@ const Payment = () => {
                 <div className="w-[90%] 1000px:w-[70%] block 800px:flex">
                     <div className="w-full 800px:w-[65%]">
                         {/* ML-DSA Key Generation Status */}
-                        <div className="mb-6 p-20 bg-blue-50 border border-blue-200 rounded-md">
+                        <div className="me-11 mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
                             <h3 className="text-lg font-semibold text-blue-900 mb-2">
                                 🔐 Cryptographic Security Status
                             </h3>

@@ -75,14 +75,18 @@ app.use("/api/v2/payment", payment);
 app.use("/api/v2/withdraw", withdraw);
 app.use("/api/v2/debug", debug);
 
-// Handle React routing - catch all handler for SPA
-app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/build", "index.html"));
-});
-
-// Error handling middleware
-// This should always be the last middleware loaded
+// Error handling middleware should be loaded before static file handling
 app.use(ErrorHandler);
+
+// Handle React routing - catch all handler for SPA (only for non-API routes)
+app.get("*", (req, res) => {
+    // Only serve React app for non-API routes
+    if (!req.path.startsWith('/api/')) {
+        res.sendFile(path.join(__dirname, "../frontend/build", "index.html"));
+    } else {
+        res.status(404).json({ message: 'API endpoint not found' });
+    }
+});
 
 // Handling Uncaught Exceptions
 // Catches synchronous errors not handled by try/catch blocks
