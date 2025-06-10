@@ -9,7 +9,7 @@ const Product = require("../model/product");
 const User = require("../model/user"); // Import User model to fetch user details for PIN verification
 const { findOrdersByPriceRange } = require('../utils/encryptedSearch');
 // Import OQS Signature utility functions
-const { signOrderData, verifyOrderSignature, getPublicKey, getAlgorithm } = require('../utils/oqsSignature');
+const { verifyOrderSignature } = require('../utils/oqsSignature');
 
 // --- Helper function to prepare order data for signing/verification consistently ---
 // This function is CRUCIAL for ML-DSA. The data used for signing MUST EXACTLY match
@@ -61,7 +61,7 @@ router.post(
     "/create-order",
     catchAsyncErrors(async (req, res, next) => {
         try {
-            const { cart, shippingAddress, user, totalPrice, paymentInfo, paymentPin } = req.body; // Added paymentPin
+            const { cart, shippingAddress, user, totalPrice, paymentInfo, paymentPin, mlDsaSignature, mlDsaPublicKey, mlDsaAlgorithm } = req.body;
 
             // --- Payment PIN Verification Step ---
             // Fetch the user, explicitly selecting the paymentPin field
@@ -85,6 +85,42 @@ router.post(
                 return next(new ErrorHandler("Incorrect payment PIN. Please try again.", 400));
             }
             // --- End Payment PIN Verification ---
+
+            // --- ML-DSA Verification Step ---
+            if (!mlDsaSignature || !mlDsaPublicKey || !mlDsaAlgorithm) {
+                return next(new ErrorHandler("ML-DSA signature, public key, and algorithm are required.", 400));
+            }
+
+            // Convert hex strings to Buffers if they're strings
+            let signatureBuffer = mlDsaSignature;
+            let publicKeyBuffer = mlDsaPublicKey;
+
+            if (typeof mlDsaSignature === 'string') {
+                signatureBuffer = Buffer.from(mlDsaSignature, 'hex');
+            }
+            if (typeof mlDsaPublicKey === 'string') {
+                publicKeyBuffer = Buffer.from(mlDsaPublicKey, 'hex');
+            }
+
+            // Prepare order data for verification (same as frontend signing)
+            const orderDataForVerification = {
+                cart: cart,
+                shippingAddress: shippingAddress,
+                user: user ? { _id: user._id } : null,
+                totalPrice: totalPrice,
+            };
+
+            // Verify the frontend-generated signature
+            const isSignatureValid = verifyOrderSignature(
+                orderDataForVerification,
+                signatureBuffer,
+                publicKeyBuffer
+            );
+
+            if (!isSignatureValid) {
+                return next(new ErrorHandler("Invalid ML-DSA signature. Order cannot be processed.", 400));
+            }
+            // --- End ML-DSA Verification ---
 
             // Group cart items by shopId
             const shopItemsMap = new Map();
@@ -113,25 +149,6 @@ router.post(
                     return next(new ErrorHandler(`Invalid total price calculation for shop ${shopId}. Please check cart items.`, 400));
                 }
 
-                // Prepare data for ML-DSA signature
-                // Ensure 'user' object for signature includes '_id' as a string to match schema and verification
-                const orderDataForSignature = prepareOrderDataForSignature({
-                    user: { _id: user._id ? user._id.toString() : user.toString() }, // Ensure user._id is a string here
-                    cart: items,
-                    totalPrice: shopTotalPrice,
-                    shippingAddress: shippingAddress,
-                    paymentInfo: paymentInfo,
-                });
-
-                // Generate ML-DSA signature using the prepared data
-                const signature = signOrderData(orderDataForSignature);
-                const publicKey = getPublicKey();
-                const algorithm = getAlgorithm();
-
-                if (!signature || !publicKey || !algorithm) {
-                    return next(new ErrorHandler("Failed to generate OQS signature or retrieve keys. OQS module might not be initialized correctly.", 500));
-                }
-
                 const order = await Order.create({
                     cart: items.map(item => ({ // Ensure cart items match schema for `productId`
                         productId: item._id || item.productId, // Handle both _id and productId
@@ -144,10 +161,10 @@ router.post(
                     user: { _id: user._id ? user._id.toString() : user.toString() }, // Store user._id as a string in schema
                     totalPrice: shopTotalPrice, // Use the calculated total price for this shop's order
                     paymentInfo,
-                    mlDsaPublicKey: publicKey, // Store the public key (Buffer)
-                    mlDsaSignature: signature, // Store the signature (Buffer)
-                    mlDsaAlgorithm: algorithm, // Store the algorithm name (e.g., "Dilithium3")
-                    isMlDsaVerified: true, // Mark as verified since it's signed by our server at creation
+                    mlDsaPublicKey: publicKeyBuffer, // Store the public key (Buffer)
+                    mlDsaSignature: signatureBuffer, // Store the signature (Buffer)
+                    mlDsaAlgorithm: mlDsaAlgorithm, // Store the algorithm name (e.g., "Dilithium3")
+                    isMlDsaVerified: true, // Mark as verified since we just verified it
                 });
                 orders.push(order);
             }
@@ -155,6 +172,7 @@ router.post(
             res.status(201).json({
                 success: true,
                 orders,
+                message: "Order created and ML-DSA signature verified successfully!",
             });
         } catch (error) {
             console.error("Error creating order:", error);

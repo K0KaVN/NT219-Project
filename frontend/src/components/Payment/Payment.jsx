@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import axios from "axios";
 import { server } from "../../server";
 import { toast } from "react-toastify";
+import mldsaHandler from "../../utils/mldsaHandler";
 
 const Payment = () => {
     const [orderData, setOrderData] = useState({});
@@ -15,6 +16,10 @@ const Payment = () => {
     const [paymentPin, setPaymentPin] = useState('');
     const [hasPinSet, setHasPinSet] = useState(false); // State to check if PIN is set
     const [loading, setLoading] = useState(false); // Loading state for payment processing
+    
+    // States for ML-DSA
+    const [mldsaKeyPair, setMldsaKeyPair] = useState(null);
+    const [generatingKeys, setGeneratingKeys] = useState(false);
 
     useEffect(() => {
         // Load order data from local storage
@@ -55,6 +60,22 @@ const Payment = () => {
             }
         };
         checkPinStatus();
+
+        // Generate ML-DSA key pair for order signing
+        const generateMLDSAKeys = async () => {
+            setGeneratingKeys(true);
+            try {
+                const keyPair = await mldsaHandler.generateKeyPair();
+                setMldsaKeyPair(keyPair);
+                console.log('ML-DSA key pair generated successfully');
+            } catch (error) {
+                console.error('Error generating ML-DSA keys:', error);
+                toast.error('Failed to generate cryptographic keys. Please refresh the page.');
+            } finally {
+                setGeneratingKeys(false);
+            }
+        };
+        generateMLDSAKeys();
     }, []);
 
     // Check if user is authenticated
@@ -65,8 +86,8 @@ const Payment = () => {
         }
     }, [user, navigate]);
 
-    // Helper function to create order object
-    const createOrderObject = () => {
+    // Helper function to create order object with ML-DSA signature
+    const createOrderObjectWithSignature = async () => {
         // Validate orderData before creating order
         if (!orderData || !orderData.cart || !orderData.shippingAddress) {
             toast.error('Order data is missing. Please go back to checkout.');
@@ -74,12 +95,33 @@ const Payment = () => {
             return null;
         }
 
-        return {
+        if (!mldsaKeyPair) {
+            toast.error('Cryptographic keys not ready. Please wait or refresh the page.');
+            return null;
+        }
+
+        const orderObj = {
             cart: orderData.cart,
             shippingAddress: orderData.shippingAddress,
             user: user ? { _id: user._id } : null,
             totalPrice: orderData.totalPrice,
         };
+
+        try {
+            // Sign the order data
+            const signature = await mldsaHandler.signOrderData(orderObj, mldsaKeyPair.privateKey);
+            
+            // Add ML-DSA fields to order
+            orderObj.mlDsaSignature = signature;
+            orderObj.mlDsaPublicKey = mldsaKeyPair.publicKey;
+            orderObj.mlDsaAlgorithm = mldsaHandler.algorithm;
+            
+            return orderObj;
+        } catch (error) {
+            console.error('Error signing order:', error);
+            toast.error('Failed to sign order. Please try again.');
+            return null;
+        }
     };
 
     // Helper function for PIN validation
@@ -97,6 +139,47 @@ const Payment = () => {
             return false;
         }
         return true;
+    };
+
+    // Helper function to save order verification information
+    const saveOrderVerificationInfo = async (orderData, createdOrders) => {
+        try {
+            if (!mldsaKeyPair) return;
+
+            const verificationInfo = mldsaHandler.generateOrderVerificationInfo(
+                orderData,
+                orderData.mlDsaSignature,
+                orderData.mlDsaPublicKey
+            );
+
+            // Add created order IDs
+            verificationInfo.orderIds = createdOrders.map(order => order._id);
+            verificationInfo.orderCount = createdOrders.length;
+
+            // Save to localStorage for user reference
+            const existingVerifications = JSON.parse(localStorage.getItem('orderVerifications') || '[]');
+            existingVerifications.push(verificationInfo);
+            localStorage.setItem('orderVerifications', JSON.stringify(existingVerifications));
+
+            // Create downloadable JSON file
+            const blob = new Blob([JSON.stringify(verificationInfo, null, 2)], {
+                type: 'application/json'
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `order-verification-${Date.now()}.json`;
+            
+            // Auto-download the verification file
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            console.log('Order verification info saved:', verificationInfo);
+        } catch (error) {
+            console.error('Error saving verification info:', error);
+        }
     };
 
     // Direct payment handler - all payments are processed directly without third-party
@@ -126,7 +209,7 @@ const Payment = () => {
             );
 
             if (data.success) {
-                const order = createOrderObject();
+                const order = await createOrderObjectWithSignature();
                 if (!order) {
                     setLoading(false);
                     return;
@@ -143,7 +226,10 @@ const Payment = () => {
 
                 await axios
                     .post(`${server}/order/create-order`, order, config)
-                    .then((res) => {
+                    .then(async (res) => {
+                        // Save order verification info
+                        await saveOrderVerificationInfo(order, res.data.orders);
+                        
                         navigate("/order/success");
                         toast.success("Payment successful!");
                         localStorage.setItem("cartItems", JSON.stringify([])); // Clear cart
@@ -178,7 +264,7 @@ const Payment = () => {
             withCredentials: true,
         };
 
-        const order = createOrderObject();
+        const order = await createOrderObjectWithSignature();
         if (!order) {
             setLoading(false);
             return;
@@ -192,7 +278,10 @@ const Payment = () => {
         try {
             await axios
                 .post(`${server}/order/create-order`, order, config)
-                .then((res) => {
+                .then(async (res) => {
+                    // Save order verification info
+                    await saveOrderVerificationInfo(order, res.data.orders);
+                    
                     navigate("/order/success");
                     toast.success("Order successful!");
                     localStorage.setItem("cartItems", JSON.stringify([]));
@@ -218,6 +307,32 @@ const Payment = () => {
             ) : (
                 <div className="w-[90%] 1000px:w-[70%] block 800px:flex">
                     <div className="w-full 800px:w-[65%]">
+                        {/* ML-DSA Key Generation Status */}
+                        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                            <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                                🔐 Cryptographic Security Status
+                            </h3>
+                            {generatingKeys ? (
+                                <div className="flex items-center">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                                    <span className="text-blue-700">Generating ML-DSA keys for secure order signing...</span>
+                                </div>
+                            ) : mldsaKeyPair ? (
+                                <div className="flex items-center">
+                                    <span className="text-green-600 mr-2">✅</span>
+                                    <span className="text-green-700">ML-DSA keys ready. Your orders will be cryptographically signed.</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center">
+                                    <span className="text-red-600 mr-2">❌</span>
+                                    <span className="text-red-700">Failed to generate keys. Please refresh the page.</span>
+                                </div>
+                            )}
+                            <p className="text-sm text-blue-600 mt-1">
+                                This ensures order integrity and authenticity using post-quantum cryptography.
+                            </p>
+                        </div>
+
                         <PaymentInfo
                             user={user}
                             directPaymentHandler={directPaymentHandler}
@@ -225,7 +340,8 @@ const Payment = () => {
                             paymentPin={paymentPin}
                             setPaymentPin={setPaymentPin}
                             hasPinSet={hasPinSet}
-                            loading={loading} // Pass loading state to disable buttons
+                            loading={loading || generatingKeys || !mldsaKeyPair} // Disable if still generating keys
+                            mldsaReady={mldsaKeyPair && !generatingKeys}
                         />
                     </div>
                     <div className="w-full 800px:w-[35%] 800px:mt-0 mt-8">
@@ -247,6 +363,7 @@ const PaymentInfo = ({
     setPaymentPin,
     hasPinSet,
     loading,
+    mldsaReady,
 }) => {
     const [select, setSelect] = useState(1);
     const navigate = useNavigate(); // For navigating to profile settings
@@ -325,7 +442,7 @@ const PaymentInfo = ({
                                     required
                                     maxLength="6"
                                     className={`${styles.input} !w-[100%]`}
-                                    disabled={!hasPinSet || loading} // Disable if PIN is not set or loading
+                                    disabled={!hasPinSet || loading || !mldsaReady} // Disable if PIN is not set, loading, or ML-DSA not ready
                                 />
                                 {!hasPinSet && (
                                     <p className="mt-2 text-sm text-red-600">
@@ -338,13 +455,18 @@ const PaymentInfo = ({
                                         </span>{' '}to set it up.
                                     </p>
                                 )}
+                                {!mldsaReady && hasPinSet && (
+                                    <p className="mt-2 text-sm text-orange-600">
+                                        Waiting for cryptographic keys to be generated...
+                                    </p>
+                                )}
                             </div>
 
                             <input
                                 type="submit"
                                 value={loading ? "Processing..." : "Pay Now"}
-                                className={`${styles.button} !bg-[#f63b60] text-[#fff] h-[45px] rounded-[5px] cursor-pointer text-[18px] font-[600] ${(!hasPinSet || loading) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                disabled={!hasPinSet || loading}
+                                className={`${styles.button} !bg-[#f63b60] text-[#fff] h-[45px] rounded-[5px] cursor-pointer text-[18px] font-[600] ${(!hasPinSet || loading || !mldsaReady) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!hasPinSet || loading || !mldsaReady}
                             />
                         </form>
                     </div>
@@ -395,7 +517,7 @@ const PaymentInfo = ({
                                     required
                                     maxLength="6"
                                     className={`${styles.input} !w-[100%]`}
-                                    disabled={!hasPinSet || loading}
+                                    disabled={!hasPinSet || loading || !mldsaReady}
                                 />
                                 {!hasPinSet && (
                                     <p className="mt-2 text-sm text-red-600">
@@ -408,12 +530,17 @@ const PaymentInfo = ({
                                         </span>{' '}to set it up.
                                     </p>
                                 )}
+                                {!mldsaReady && hasPinSet && (
+                                    <p className="mt-2 text-sm text-orange-600">
+                                        Waiting for cryptographic keys to be generated...
+                                    </p>
+                                )}
                             </div>
                             <input
                                 type="submit"
                                 value={loading ? "Confirming..." : "Confirm"}
-                                className={`${styles.button} !bg-[#f63b60] text-[#fff] h-[45px] rounded-[5px] cursor-pointer text-[18px] font-[600] ${(!hasPinSet || loading) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                disabled={!hasPinSet || loading}
+                                className={`${styles.button} !bg-[#f63b60] text-[#fff] h-[45px] rounded-[5px] cursor-pointer text-[18px] font-[600] ${(!hasPinSet || loading || !mldsaReady) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!hasPinSet || loading || !mldsaReady}
                             />
                         </form>
                     </div>

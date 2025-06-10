@@ -10,39 +10,15 @@ const { decryptAmount } = require("../utils/encryption");
 const ErrorHandler = require("../utils/ErrorHandler");
 
 // Import OQS Signature utility
-const { signOrderData, verifyOrderSignature, getPublicKey, getAlgorithm } = require('../utils/oqsSignature');
+const { verifyOrderSignature } = require('../utils/oqsSignature');
 
-// Helper function to prepare order data for signing/verification consistently
-const prepareOrderDataForSignature = (order) => {
-    return {
-        userId: order.user._id ? order.user._id.toString() : order.user.toString(),
-        cart: order.cart.map(item => ({
-            productId: item.productId ? item.productId.toString() : (item._id ? item._id.toString() : undefined),
-            qty: item.qty,
-            price: item.price,
-            shopId: item.shopId,
-        })).filter(item => item.productId !== undefined),
-        totalPrice: order.totalPrice,
-        shippingAddress: {
-            address: order.shippingAddress.address || null,
-            province: order.shippingAddress.province || null,
-            country: order.shippingAddress.country || null,
-        },
-        paymentInfo: {
-            id: order.paymentInfo.id || null,
-            status: order.paymentInfo.status || null,
-            type: order.paymentInfo.type || null,
-        },
-    };
-};
-
-// --- Create New Order (with Payment PIN verification) ---
+// --- Create New Order (with Payment PIN verification and frontend ML-DSA signature) ---
 router.post(
     "/create-order",
     isAuthenticated, // User must be authenticated to create an order
     catchAsyncErrors(async (req, res, next) => {
         try {
-            const { cart, shippingAddress, user, paymentInfo, paymentPin } = req.body; // Get paymentPin from request body
+            const { cart, shippingAddress, user, paymentInfo, paymentPin, mlDsaSignature, mlDsaPublicKey, mlDsaAlgorithm } = req.body;
 
             // --- PIN Verification Step ---
             // Fetch the user, explicitly selecting the paymentPin field
@@ -66,6 +42,42 @@ router.post(
                 return next(new ErrorHandler("Incorrect payment PIN. Please try again.", 400));
             }
             // --- End PIN Verification ---
+
+            // --- ML-DSA Verification Step ---
+            if (!mlDsaSignature || !mlDsaPublicKey || !mlDsaAlgorithm) {
+                return next(new ErrorHandler("ML-DSA signature, public key, and algorithm are required.", 400));
+            }
+
+            // Convert hex strings to Buffers if they're strings
+            let signatureBuffer = mlDsaSignature;
+            let publicKeyBuffer = mlDsaPublicKey;
+
+            if (typeof mlDsaSignature === 'string') {
+                signatureBuffer = Buffer.from(mlDsaSignature, 'hex');
+            }
+            if (typeof mlDsaPublicKey === 'string') {
+                publicKeyBuffer = Buffer.from(mlDsaPublicKey, 'hex');
+            }
+
+            // Prepare order data for verification (same as frontend signing)
+            const orderDataForVerification = {
+                cart: cart,
+                shippingAddress: shippingAddress,
+                user: user ? { _id: user._id } : null,
+                totalPrice: req.body.totalPrice,
+            };
+
+            // Verify the frontend-generated signature
+            const isSignatureValid = verifyOrderSignature(
+                orderDataForVerification,
+                signatureBuffer,
+                publicKeyBuffer
+            );
+
+            if (!isSignatureValid) {
+                return next(new ErrorHandler("Invalid ML-DSA signature. Order cannot be processed.", 400));
+            }
+            // --- End ML-DSA Verification ---
 
             // Group cart items by shopId (existing logic)
             const shopItemsMap = new Map();
@@ -93,24 +105,6 @@ router.post(
                     return next(new ErrorHandler(`Invalid total price calculation for shop ${shopId}. Please check cart items.`, 400));
                 }
 
-                // Prepare data for ML-DSA signature
-                const orderDataForSignature = prepareOrderDataForSignature({
-                    user: { _id: user._id ? user._id.toString() : user.toString() },
-                    cart: items,
-                    totalPrice: shopTotalPrice,
-                    shippingAddress: shippingAddress,
-                    paymentInfo: paymentInfo,
-                });
-
-                // Generate ML-DSA signature
-                const signature = signOrderData(orderDataForSignature);
-                const publicKey = getPublicKey();
-                const algorithm = getAlgorithm();
-
-                if (!signature || !publicKey || !algorithm) {
-                    return next(new ErrorHandler("Failed to generate OQS signature or retrieve keys.", 500));
-                }
-
                 const order = await Order.create({
                     cart: items.map(item => ({
                         productId: item._id || item.productId, // Handle both _id and productId
@@ -123,10 +117,10 @@ router.post(
                     user: { _id: user._id ? user._id.toString() : user.toString() },
                     totalPrice: shopTotalPrice,
                     paymentInfo,
-                    mlDsaPublicKey: publicKey,
-                    mlDsaSignature: signature,
-                    mlDsaAlgorithm: algorithm,
-                    isMlDsaVerified: true,
+                    mlDsaPublicKey: publicKeyBuffer,
+                    mlDsaSignature: signatureBuffer,
+                    mlDsaAlgorithm: mlDsaAlgorithm,
+                    isMlDsaVerified: true, // Mark as verified since we just verified it
                 });
                 orders.push(order);
             }
@@ -134,10 +128,10 @@ router.post(
             res.status(201).json({
                 success: true,
                 orders,
-                message: "Order created and payment PIN verified successfully!",
+                message: "Order created and ML-DSA signature verified successfully!",
             });
         } catch (error) {
-            console.error("Error creating order with PIN verification:", error);
+            console.error("Error creating order with ML-DSA verification:", error);
             return next(new ErrorHandler(error.message, 500));
         }
     })
