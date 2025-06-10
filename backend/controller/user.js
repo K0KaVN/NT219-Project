@@ -35,12 +35,21 @@ router.put(
                 return next(new ErrorHandler("User not found", 404));
             }
 
-            // Verify user's current password for security before allowing PIN change
-            const isPasswordMatched = await user.comparePassword(currentPassword);
-
-            if (!isPasswordMatched) {
-                return next(new ErrorHandler("Current password is incorrect", 400));
+            // Only verify password if user already has a PIN set
+            if (user.paymentPin) {
+                // If user already has a PIN, we need to verify the password
+                if (!currentPassword) {
+                    return next(new ErrorHandler("Current password is required to change existing PIN", 400));
+                }
+                
+                const isPasswordMatched = await user.comparePassword(currentPassword);
+                
+                if (!isPasswordMatched) {
+                    return next(new ErrorHandler("Current password is incorrect", 400));
+                }
             }
+            // If user doesn't have a PIN yet and no currentPassword was provided, 
+            // we allow setting the PIN without password verification (first-time setup)
 
             // Update the payment PIN
             user.paymentPin = newPin;

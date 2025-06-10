@@ -4,7 +4,7 @@ import { FiPackage, FiShoppingBag } from "react-icons/fi";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 
-import { backend_url } from "../../../server";
+import { backend_url, getImageUrl } from "../../../server";
 
 const DashboardHeader = () => {
     const { seller } = useSelector((state) => state.seller);
@@ -40,7 +40,7 @@ const DashboardHeader = () => {
                     </Link>
                     <Link to={`/shop/${seller._id}`}>
                         <img
-                            src={`${backend_url}${seller.avatar}`}
+                            src={getImageUrl(seller.avatar)}
                             alt=""
                             className="w-[50px] h-[50px] rounded-full object-cover"
                             onError={(e) => {

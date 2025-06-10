@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { backend_url, server } from "../../server";
+import { backend_url, server, getImageUrl } from "../../server";
 import { AiOutlineCamera } from "react-icons/ai";
 import styles from "../../styles/styles";
 import axios from "axios";
@@ -68,11 +68,13 @@ const ShopSettings = () => {
                 <div className="w-full flex items-center justify-center">
                     <div className="relative">
                         <img
-                            src={
-                                avatar ? URL.createObjectURL(avatar) : `${backend_url}${seller.avatar}`
-                            }
+                            src={seller && seller.avatar ? getImageUrl(seller.avatar) : `${backend_url}/uploads/DefaultAvatar.jpeg`}
                             alt=""
                             className="w-[200px] h-[200px] rounded-full cursor-pointer"
+                            onError={(e) => {
+                                console.error('Shop avatar image failed to load:', e.target.src);
+                                e.target.style.display = 'none';
+                            }}
                         />
                         <div className="w-[30px] h-[30px] bg-[#E3E9EE] rounded-full flex items-center justify-center cursor-pointer absolute bottom-[10px] right-[15px]">
                             <input

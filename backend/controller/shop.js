@@ -36,7 +36,8 @@ router.post("/create-shop", upload.single("file"), async (req, res, next) => {
     }
 
     const filename = req.file.filename;
-    const fileUrl = path.join(filename);
+    // Ensure fileUrl has a leading /uploads/ path
+    const fileUrl = `/uploads/${filename}`;
 
     const seller = {
       name: req.body.name,
@@ -382,11 +383,22 @@ router.put(
     try {
       const existsUser = await Shop.findById(req.seller._id);
 
-      const existAvatarPath = `uploads/${existsUser.avatar}`;
+      // Handle existing avatar deletion properly
+      try {
+        if (existsUser.avatar && !existsUser.avatar.startsWith("/uploads/")) {
+          const existAvatarPath = `uploads/${existsUser.avatar}`;
+          fs.unlinkSync(existAvatarPath);
+        } else if (existsUser.avatar && existsUser.avatar !== "/uploads/DefaultAvatar.jpeg") {
+          const existAvatarPath = existsUser.avatar.replace("/uploads/", "uploads/");
+          fs.unlinkSync(existAvatarPath);
+        }
+      } catch (err) {
+        console.log("Error deleting previous avatar:", err);
+        // Continue execution even if file deletion fails
+      }
 
-      fs.unlinkSync(existAvatarPath);
-
-      const fileUrl = path.join(req.file.filename);
+      // Ensure fileUrl has a leading /uploads/ path
+      const fileUrl = `/uploads/${req.file.filename}`;
 
       const seller = await Shop.findByIdAndUpdate(req.seller._id, {
         avatar: fileUrl,

@@ -9,7 +9,7 @@ import {
     AiOutlineShoppingCart,
     AiOutlineStar,
 } from "react-icons/ai";
-import { backend_url } from "../../../server";
+import { backend_url, getImageUrl } from "../../../server";
 import ProductDetailsCard from "../ProductDetailsCard/ProductDetailsCard.jsx";
 import { useDispatch, useSelector } from 'react-redux'
 import { addToWishlist, removeFromWishlist } from '../../../redux/actions/wishlist';
@@ -72,7 +72,7 @@ const ProductCard = ({ data }) => {
 
                 <Link to={`/product/${data._id}`}>
                     <img
-                        src={`${backend_url}${data.images && data.images[0] ? data.images[0] : ''}`}
+                        src={getImageUrl(data.images && data.images[0] ? data.images[0] : '')}
                         alt="prd"
                         className='w-full h-[170px] object-contain'
                         onError={(e) => {

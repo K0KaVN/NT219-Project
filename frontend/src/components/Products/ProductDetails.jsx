@@ -8,7 +8,7 @@ import {
 } from "react-icons/ai";
 import { useDispatch, useSelector } from "react-redux";
 import { getAllProductsShop } from "../../redux/actions/product";
-import { backend_url, server } from "../../server";
+import { backend_url, server, getImageUrl } from "../../server";
 import {
   addToWishlist,
   removeFromWishlist,
@@ -101,7 +101,7 @@ const ProductDetails = ({ data }) => {
             <div className="block w-full 800px:flex">
               <div className="w-full 800px:w-[50%]">
                 <img
-                  src={`${backend_url}${data && data.images && data.images[select] ? data.images[select] : ''}`}
+                  src={data && data.images && data.images[select] ? getImageUrl(data.images[select]) : ''}
                   alt=""
                   className="w-[80%]"
                   onError={(e) => {
@@ -118,7 +118,7 @@ const ProductDetails = ({ data }) => {
                         } cursor-pointer`}
                       >
                         <img
-                          src={`${backend_url}${i}`}
+                          src={getImageUrl(i)}
                           alt=""
                           className="h-[200px] overflow-hidden mr-3 mt-3"
                           onClick={() => setSelect(index)}
@@ -208,7 +208,7 @@ const ProductDetails = ({ data }) => {
                 <div className="flex items-center pt-8">
                   <Link to={`/shop/preview/${data?.shop._id}`}>
                     <img
-                      src={`${backend_url}${data?.shop?.avatar}`}
+                      src={getImageUrl(data?.shop?.avatar)}
                       alt=""
                       className="w-[50px] h-[50px] rounded-full mr-2"
                       onError={(e) => {
@@ -321,7 +321,7 @@ const ProductDetailsInfo = ({
             data.reviews.map((item, index) => (
               <div className="w-full flex my-2">
                 <img
-                  src={`${backend_url}${item.user.avatar}`}
+                  src={getImageUrl(item.user.avatar)}
                   alt=""
                   className="w-[50px] h-[50px] rounded-full"
                   onError={(e) => {

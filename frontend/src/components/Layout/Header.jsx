@@ -13,7 +13,7 @@ import { CgProfile } from "react-icons/cg";
 import DropDown from "./DropDown";
 import Navbar from "./Navbar";
 import { useSelector } from "react-redux";
-import { backend_url } from "../../server";
+import { backend_url, getImageUrl } from "../../server";
 import Cart from "../cart/Cart";
 import Wishlist from "../Wishlist/Wishlist";
 import { RxCross1 } from "react-icons/rx";
@@ -89,7 +89,7 @@ const Header = ({ activeHeading }) => {
                         <Link to={`/product/${i._id}`}>
                           <div className="w-full flex items-start-py-3">
                             <img
-                              src={`${backend_url}${i.images[0]}`}
+                              src={getImageUrl(i.images[0])}
                               alt="img"
                               className="w-[40px] h-[40px] mr-[10px]"
                               onError={(e) => {
@@ -192,7 +192,7 @@ const Header = ({ activeHeading }) => {
                 {isAuthenticated ? (
                   <Link to="/profile">
                     <img
-                      src={`${backend_url}${user.avatar}`}
+                      src={getImageUrl(user.avatar)}
                       className="w-[35px] h-[35px] rounded-full"
                       alt=""
                       onError={(e) => {
@@ -342,7 +342,7 @@ const Header = ({ activeHeading }) => {
                 <div>
                   <Link to="/profile">
                     <img
-                      src={`${backend_url}${user.avatar}`}
+                      src={getImageUrl(user.avatar)}
                       alt="Profile img"
                       className="w-[60px] h-[60px] rounded-full border-[3px] border-[#0eae88]"
                     />
