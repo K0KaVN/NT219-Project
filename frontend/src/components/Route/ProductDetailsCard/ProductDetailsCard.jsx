@@ -86,7 +86,7 @@ const ProductDetailsCard = ({ setOpen, data }) => {
                                 <div className="block w-full 800px:flex">
                                     <div className='w-full 800px:w-[50%]'>
                                         <img 
-                                            src={getImageUrl(data.images && data.images[0])} 
+                                            src={getImageUrl(data.images && data.images[0] ? data.images[0] : '')} 
                                             alt="img"
                                             onError={(e) => {
                                                 console.error('Product image failed to load:', e.target.src);

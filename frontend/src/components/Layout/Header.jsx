@@ -89,7 +89,7 @@ const Header = ({ activeHeading }) => {
                         <Link to={`/product/${i._id}`}>
                           <div className="w-full flex items-start-py-3">
                             <img
-                              src={getImageUrl(i.images[0])}
+                              src={getImageUrl(i.images && i.images[0] ? i.images[0] : '')}
                               alt="img"
                               className="w-[40px] h-[40px] mr-[10px]"
                               onError={(e) => {

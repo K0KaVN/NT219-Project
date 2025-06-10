@@ -90,9 +90,9 @@ const OrderDetails = () => {
       <br />
       {data &&
         data?.cart.map((item, index) => (
-          <div className="w-full flex items-start mb-5">
+          <div className="w-full flex items-start mb-5" key={index}>
             <img
-              src={`${backend_url}${item.images[0]}`}
+              src={`${backend_url}${item.images && item.images[0] ? item.images[0] : ''}`}
               alt="Product item order img"
               className="w-[80x] h-[80px]"
               onError={(e) => {
