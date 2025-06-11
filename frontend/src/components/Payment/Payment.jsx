@@ -167,13 +167,34 @@ const Payment = () => {
             verificationInfo.orderIds = createdOrders.map(order => order._id);
             verificationInfo.orderCount = createdOrders.length;
 
+            // Organize the verification file with clear sections
+            const verificationFile = {
+                metadata: {
+                    orderHash: verificationInfo.orderHash,
+                    algorithm: verificationInfo.algorithm,
+                    timestamp: verificationInfo.timestamp,
+                    version: verificationInfo.version,
+                    orderCount: verificationInfo.orderCount,
+                    orderIds: verificationInfo.orderIds
+                },
+                signedData: verificationInfo.signedData,
+                cryptographic: {
+                    signature: verificationInfo.signature,
+                    publicKey: verificationInfo.publicKey
+                },
+                verification: {
+                    instructions: "To verify this signature, hash the 'signedData' with SHA-256 and verify using ML-DSA (Dilithium3) algorithm",
+                    signedDataJSON: JSON.stringify(verificationInfo.signedData, null, 0)
+                }
+            };
+
             // Save to localStorage for user reference
             const existingVerifications = JSON.parse(localStorage.getItem('orderVerifications') || '[]');
-            existingVerifications.push(verificationInfo);
+            existingVerifications.push(verificationFile);
             localStorage.setItem('orderVerifications', JSON.stringify(existingVerifications));
 
             // Create downloadable JSON file
-            const blob = new Blob([JSON.stringify(verificationInfo, null, 2)], {
+            const blob = new Blob([JSON.stringify(verificationFile, null, 2)], {
                 type: 'application/json'
             });
             const url = URL.createObjectURL(blob);

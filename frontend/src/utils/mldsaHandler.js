@@ -174,6 +174,9 @@ class MLDSAHandler {
         const timestamp = new Date().toISOString();
         const orderHash = this.hashOrderData(orderData);
         
+        // Prepare the signed data (same format used for signing)
+        const signedData = this.prepareOrderDataForSignature(orderData);
+        
         return {
             orderHash,
             signature,
@@ -181,6 +184,7 @@ class MLDSAHandler {
             algorithm: this.algorithm,
             timestamp,
             version: '1.0',
+            signedData: signedData, // Add the original data that was signed
         };
     }
 
