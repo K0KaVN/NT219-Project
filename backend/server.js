@@ -28,10 +28,10 @@ app.use(express.json()); // Parses incoming JSON requests
 app.use(cookieParser()); // Parses cookies attached to the client request object
 
 app.use(
-    cors({
-        origin: "http://localhost:3000", // Allow requests from your client application
-        credentials: true, // Allow sending cookies with requests
-    })
+  cors({
+    origin: "https://shopingse.id.vn",
+    credentials: true,
+  })
 );
 
 // Serve static files from the 'uploads' directory
