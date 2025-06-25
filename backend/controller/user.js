@@ -14,6 +14,7 @@ const router = express.Router();
 const { encryptDeviceId, decryptDeviceId, signDeviceId, verifyDeviceId } = require('../utils/deviceIdSecurity');
 const { findUserByPhoneNumber, updateUserPhoneNumber, updateUserAddress } = require('../utils/encryptedSearch');
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 const PUBLIC_KEY = process.env.EC_PUBLIC_KEY && process.env.EC_PUBLIC_KEY.trim();
 const bcrypt = require("bcryptjs");
 
@@ -280,8 +281,7 @@ router.post(
       }
       // Tạo OTP 6 số
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const salt = await bcrypt.genSalt(10);
-      const hashedOtp = await bcrypt.hash(otp, salt);
+      const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
       await Otp.deleteMany({ email });
       await Otp.create({
         email,
@@ -352,8 +352,8 @@ router.post(
       if (!record || record.expiresAt < Date.now()) {
         return next(new ErrorHandler("OTP invalid or expired", 400));
       }
-      const isOtpValid = await bcrypt.compare(otp, record.otp);
-      if (!isOtpValid) {
+      const hashedInputOtp = crypto.createHash("sha256").update(otp).digest("hex");
+      if (hashedInputOtp !== record.otp) {
         return next(new ErrorHandler("OTP invalid or expired", 400));
       }
       await Otp.deleteOne({ email });
