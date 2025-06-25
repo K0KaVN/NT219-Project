@@ -21,7 +21,8 @@ router.post(
         return next(new ErrorHandler("Shop Id is invalid!", 400));
       } else {
         const files = req.files;
-        const imageUrls = files.map((file) => `${file.filename}`);
+        // Add the /uploads/ prefix to all image paths
+        const imageUrls = files.map((file) => `/uploads/${file.filename}`);
 
         const productData = req.body;
         productData.images = imageUrls;
@@ -68,8 +69,10 @@ router.delete(
       const productData = await Product.findById(productId);
 
       productData.images.forEach((imageUrl) => {
-        const filename = imageUrl;
-        const filePath = `uploads/${filename}`;
+        // Handle both formats: with or without /uploads/ prefix
+        const filePath = imageUrl.startsWith('/uploads/') 
+          ? imageUrl.replace('/uploads/', 'uploads/') 
+          : `uploads/${imageUrl}`;
 
         fs.unlink(filePath, (err) => {
           if (err) {

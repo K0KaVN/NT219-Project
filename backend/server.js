@@ -34,8 +34,11 @@ app.use(
   })
 );
 
-// Serve static files from the 'uploads' directory
-app.use("/", express.static("uploads"));
+// Serve static files from the 'uploads' directory under /uploads path
+app.use("/uploads", express.static("uploads"));
+
+// Serve static files from React build
+app.use(express.static(path.join(__dirname, "../frontend/build")));
 
 // Parse URL-encoded bodies (for form data) with a generous limit
 app.use(bodyParser.urlencoded({ extended: true, limit: "50mb" }));
@@ -56,29 +59,34 @@ app.get("/", (req, res) => {
 const user = require("./controller/user");
 const shop = require("./controller/shop");
 const product = require("./controller/product");
-const event = require("./controller/event");
 const coupon = require("./controller/coupounCode");
 const payment = require("./controller/payment");
 const order = require("./controller/order");
-const message = require("./controller/message");
-const conversation = require("./controller/conversation");
 const withdraw = require("./controller/withdraw");
+const debug = require("./controller/debug");
 
 // Mount routes at their respective base paths
 app.use("/api/v2/user", user);
-app.use("/api/v2/conversation", conversation);
-app.use("/api/v2/message", message);
 app.use("/api/v2/order", order);
 app.use("/api/v2/shop", shop);
 app.use("/api/v2/product", product);
-app.use("/api/v2/event", event);
 app.use("/api/v2/coupon", coupon);
 app.use("/api/v2/payment", payment);
-app.use("/api/v2/withdraw", withdraw); // Moved this up for better grouping
+app.use("/api/v2/withdraw", withdraw);
+app.use("/api/v2/debug", debug);
 
-// Error handling middleware
-// This should always be the last middleware loaded
+// Error handling middleware should be loaded before static file handling
 app.use(ErrorHandler);
+
+// Handle React routing - catch all handler for SPA (only for non-API routes)
+app.get("*", (req, res) => {
+    // Only serve React app for non-API routes
+    if (!req.path.startsWith('/api/')) {
+        res.sendFile(path.join(__dirname, "../frontend/build", "index.html"));
+    } else {
+        res.status(404).json({ message: 'API endpoint not found' });
+    }
+});
 
 // Handling Uncaught Exceptions
 // Catches synchronous errors not handled by try/catch blocks

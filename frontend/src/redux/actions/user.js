@@ -22,6 +22,21 @@ export const loadUser = () => async (dispatch) => {
   }
 };
 
+// logout user
+export const logoutUser = () => async (dispatch) => {
+  try {
+    await axios.get(`${server}/user/logout`, { withCredentials: true });
+    dispatch({
+      type: "LogoutUserSuccess",
+    });
+  } catch (error) {
+    dispatch({
+      type: "LogoutUserFail",
+      payload: error.response?.data?.message || "Logout failed",
+    });
+  }
+};
+
 // load seller
 export const loadSeller = () => async (dispatch) => {
   try {
@@ -39,6 +54,21 @@ export const loadSeller = () => async (dispatch) => {
     dispatch({
       type: "LoadSellerFail",
       payload: error.response.data.message,
+    });
+  }
+};
+
+// logout seller
+export const logoutSeller = () => async (dispatch) => {
+  try {
+    await axios.get(`${server}/shop/logout`, { withCredentials: true });
+    dispatch({
+      type: "LogoutSellerSuccess",
+    });
+  } catch (error) {
+    dispatch({
+      type: "LogoutSellerFail",
+      payload: error.response?.data?.message || "Logout failed",
     });
   }
 };
@@ -77,7 +107,7 @@ export const updateUserInformation =
 
 // update user address
 export const updatUserAddress =
-  (country, city, address1, address2, zipCode, addressType) =>
+  (country, province, address, addressType) =>
   async (dispatch) => {
     try {
       dispatch({
@@ -88,10 +118,8 @@ export const updatUserAddress =
         `${server}/user/update-user-addresses`,
         {
           country,
-          city,
-          address1,
-          address2,
-          zipCode,
+          province, // Changed from city to province
+          address, // Simplified to just address
           addressType,
         },
         { withCredentials: true }

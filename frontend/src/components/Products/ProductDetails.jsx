@@ -4,12 +4,11 @@ import styles from "../../styles/styles";
 import {
   AiFillHeart,
   AiOutlineHeart,
-  AiOutlineMessage,
   AiOutlineShoppingCart,
 } from "react-icons/ai";
 import { useDispatch, useSelector } from "react-redux";
 import { getAllProductsShop } from "../../redux/actions/product";
-import { backend_url, server } from "../../server";
+import { backend_url, server, getImageUrl } from "../../server";
 import {
   addToWishlist,
   removeFromWishlist,
@@ -92,30 +91,7 @@ const ProductDetails = ({ data }) => {
 
   const avg = totalRatings / totalReviewsLength || 0;
 
-  const averageRating = avg.toFixed(2);
-
-  // Sand message
-  const handleMessageSubmit = async () => {
-    if (isAuthenticated) {
-      const groupTitle = data._id + user._id;
-      const userId = user._id;
-      const sellerId = data.shop._id;
-      await axios
-        .post(`${server}/conversation/create-new-conversation`, {
-          groupTitle,
-          userId,
-          sellerId,
-        })
-        .then((res) => {
-          navigate(`/inbox?${res.data.conversation._id}`);
-        })
-        .catch((error) => {
-          toast.error(error.response.data.message);
-        });
-    } else {
-      toast.error("Please login to create a conversation");
-    }
-  };
+  const averageRating = (avg && !isNaN(avg)) ? Number(avg).toFixed(2) : '0.00';
 
   return (
     <div className="bg-white">
@@ -125,23 +101,31 @@ const ProductDetails = ({ data }) => {
             <div className="block w-full 800px:flex">
               <div className="w-full 800px:w-[50%]">
                 <img
-                  src={`${backend_url}${data && data.images[select]}`}
+                  src={data && data.images && data.images[select] ? getImageUrl(data.images[select]) : ''}
                   alt=""
                   className="w-[80%]"
+                  onError={(e) => {
+                    console.error('Main image failed to load:', e.target.src);
+                    e.target.style.display = 'none';
+                  }}
                 />
                 <div className="w-full flex">
                   {data &&
-                    data.images.map((i, index) => (
+                    data.images && data.images.map((i, index) => (
                       <div
                         className={`${
                           select === 0 ? "border" : "null"
                         } cursor-pointer`}
                       >
                         <img
-                          src={`${backend_url}${i}`}
+                          src={getImageUrl(i)}
                           alt=""
                           className="h-[200px] overflow-hidden mr-3 mt-3"
                           onClick={() => setSelect(index)}
+                          onError={(e) => {
+                            console.error('Thumbnail image failed to load:', e.target.src);
+                            e.target.style.display = 'none';
+                          }}
                         />
                       </div>
                     ))}
@@ -224,9 +208,13 @@ const ProductDetails = ({ data }) => {
                 <div className="flex items-center pt-8">
                   <Link to={`/shop/preview/${data?.shop._id}`}>
                     <img
-                      src={`${backend_url}${data?.shop?.avatar}`}
+                      src={getImageUrl(data?.shop?.avatar)}
                       alt=""
                       className="w-[50px] h-[50px] rounded-full mr-2"
+                      onError={(e) => {
+                        console.error('Shop avatar image failed to load:', e.target.src);
+                        e.target.style.display = 'none';
+                      }}
                     />
                   </Link>
 
@@ -242,15 +230,6 @@ const ProductDetails = ({ data }) => {
                       {" "}
                       ({averageRating}/5) Ratingss
                     </h5>
-                  </div>
-
-                  <div
-                    className={`${styles.button} bg-[#6443d1] mt-4 !rounded !h-11`}
-                    onClick={handleMessageSubmit}
-                  >
-                    <span className="text-white flex items-center">
-                      Send Message <AiOutlineMessage className="ml-1" />
-                    </span>
                   </div>
                 </div>
               </div>
@@ -342,9 +321,13 @@ const ProductDetailsInfo = ({
             data.reviews.map((item, index) => (
               <div className="w-full flex my-2">
                 <img
-                  src={`${backend_url}/${item.user.avatar}`}
+                  src={getImageUrl(item.user.avatar)}
                   alt=""
                   className="w-[50px] h-[50px] rounded-full"
+                  onError={(e) => {
+                    console.error('Review user avatar image failed to load:', e.target.src);
+                    e.target.style.display = 'none';
+                  }}
                 />
                 <div className="pl-2 ">
                   <div className="w-full flex items-center">
@@ -375,6 +358,10 @@ const ProductDetailsInfo = ({
                       src={`${backend_url}${data?.shop?.avatar}`}
                       className="w-[50px] h-[50px] rounded-full"
                       alt=""
+                      onError={(e) => {
+                        console.error('Shop avatar image failed to load:', e.target.src);
+                        e.target.style.display = 'none';
+                      }}
                     />
                     <div className="pl-3">
                       <h3 className={`${styles.shop_name}`}>

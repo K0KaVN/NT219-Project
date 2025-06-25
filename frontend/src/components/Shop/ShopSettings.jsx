@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { backend_url, server } from "../../server";
+import { backend_url, server, getImageUrl } from "../../server";
 import { AiOutlineCamera } from "react-icons/ai";
 import styles from "../../styles/styles";
 import axios from "axios";
 import { loadSeller } from "../../redux/actions/user";
 import { toast } from "react-toastify";
+import { vietnameseProvinces } from "../../utils/vietnameseProvinces";
 
 const ShopSettings = () => {
     const { seller } = useSelector((state) => state.seller);
@@ -14,8 +15,7 @@ const ShopSettings = () => {
     const [description, setDescription] = useState(seller && seller.description ? seller.description : "");
     const [address, setAddress] = useState(seller && seller.address);
     const [phoneNumber, setPhoneNumber] = useState(seller && seller.phoneNumber);
-    const [zipCode, setZipcode] = useState(seller && seller.zipCode);
-
+    const [province, setProvince] = useState(seller && seller.province);
 
     const dispatch = useDispatch();
 
@@ -49,7 +49,7 @@ const ShopSettings = () => {
         await axios.put(`${server}/shop/update-seller-info`, {
             name,
             address,
-            zipCode,
+            province,
             phoneNumber,
             description,
         }, { withCredentials: true }).then((res) => {
@@ -60,19 +60,19 @@ const ShopSettings = () => {
         })
     };
 
-
-
     return (
         <div className="w-full min-h-screen flex flex-col items-center">
             <div className="flex w-full 800px:w-[80%] flex-col justify-center my-5">
                 <div className="w-full flex items-center justify-center">
                     <div className="relative">
                         <img
-                            src={
-                                avatar ? URL.createObjectURL(avatar) : `${backend_url}/${seller.avatar}`
-                            }
+                            src={seller && seller.avatar ? getImageUrl(seller.avatar) : `${backend_url}/uploads/DefaultAvatar.jpeg`}
                             alt=""
                             className="w-[200px] h-[200px] rounded-full cursor-pointer"
+                            onError={(e) => {
+                                console.error('Shop avatar image failed to load:', e.target.src);
+                                e.target.style.display = 'none';
+                            }}
                         />
                         <div className="w-[30px] h-[30px] bg-[#E3E9EE] rounded-full flex items-center justify-center cursor-pointer absolute bottom-[10px] right-[15px]">
                             <input
@@ -100,7 +100,7 @@ const ShopSettings = () => {
                         </div>
                         <input
                             type="name"
-                            placeholder={`${seller.name}`}
+                            placeholder={seller.name}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className={`${styles.input} !w-[95%] mb-4 800px:mb-0`}
@@ -113,10 +113,7 @@ const ShopSettings = () => {
                         </div>
                         <input
                             type="name"
-                            placeholder={`${seller?.description
-                                ? seller.description
-                                : "Enter your shop description"
-                                }`}
+                            placeholder={seller?.description || "Enter your shop description"}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             className={`${styles.input} !w-[95%] mb-4 800px:mb-0`}
@@ -152,16 +149,21 @@ const ShopSettings = () => {
 
                     <div className="w-[100%] flex items-center flex-col 800px:w-[50%] mt-5">
                         <div className="w-full pl-[3%]">
-                            <label className="block pb-2">Shop Zip Code</label>
+                            <label className="block pb-2">Shop Province</label>
                         </div>
-                        <input
-                            type="number"
-                            placeholder={seller?.zipCode}
-                            value={zipCode}
-                            onChange={(e) => setZipcode(e.target.value)}
+                        <select
+                            value={province || ""}
+                            onChange={(e) => setProvince(e.target.value)}
                             className={`${styles.input} !w-[95%] mb-4 800px:mb-0`}
                             required
-                        />
+                        >
+                            <option value="">Choose your province</option>
+                            {vietnameseProvinces.map((provinceName) => (
+                                <option key={provinceName} value={provinceName}>
+                                    {provinceName}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     <div className="w-[100%] flex items-center flex-col 800px:w-[50%] mt-5">

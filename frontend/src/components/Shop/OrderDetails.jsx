@@ -90,11 +90,15 @@ const OrderDetails = () => {
       <br />
       {data &&
         data?.cart.map((item, index) => (
-          <div className="w-full flex items-start mb-5">
+          <div className="w-full flex items-start mb-5" key={index}>
             <img
-              src={`${backend_url}/${item.images[0]}`}
+              src={`${backend_url}${item.images && item.images[0] ? item.images[0] : ''}`}
               alt="Product item order img"
               className="w-[80x] h-[80px]"
+              onError={(e) => {
+                console.error('Order product image failed to load:', e.target.src);
+                e.target.style.display = 'none';
+              }}
             />
             <div className="w-full">
               <h5 className="pl-3 text-[20px]">{item.name}</h5>
@@ -119,12 +123,9 @@ const OrderDetails = () => {
           <h4 className="pt-3 text-[20px] font-[600]">Shipping Address:</h4>
 
           <h4 className="pt-3 text-[20px]">
-            {data?.shippingAddress.address1 +
-              " " +
-              data?.shippingAddress.address2}
+            {data?.shippingAddress.address}
           </h4>
-          <h4 className="text-[20px]">{data?.shippingAddress.country}</h4>
-          <h4 className=" text-[20px]">{data?.shippingAddress.city}</h4>
+          <h4 className="text-[20px]">{data?.shippingAddress.province}, {data?.shippingAddress.country}</h4>
 
           <h4 className=" text-[20px]">{data?.user?.phoneNumber}</h4>
         </div>

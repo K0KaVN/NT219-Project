@@ -6,43 +6,19 @@ const Order = require("../model/order");
 const Shop = require("../model/shop");
 const Product = require("../model/product");
 const User = require("../model/user");
+const { decryptAmount } = require("../utils/encryption");
+const ErrorHandler = require("../utils/ErrorHandler");
 
 // Import OQS Signature utility
-const { signOrderData, verifyOrderSignature, getPublicKey, getAlgorithm } = require('../utils/oqsSignature');
+const { verifyOrderSignature } = require('../utils/oqsSignature');
 
-// Helper function to prepare order data for signing/verification consistently
-const prepareOrderDataForSignature = (order) => {
-    return {
-        userId: order.user._id ? order.user._id.toString() : order.user.toString(),
-        cart: order.cart.map(item => ({
-            productId: item.productId ? item.productId.toString() : (item._id ? item._id.toString() : undefined),
-            qty: item.qty,
-            price: item.price,
-            shopId: item.shopId,
-        })).filter(item => item.productId !== undefined),
-        totalPrice: order.totalPrice,
-        shippingAddress: {
-            address1: order.shippingAddress.address1 || null,
-            address2: order.shippingAddress.address2 || null,
-            zipCode: order.shippingAddress.zipCode || null,
-            country: order.shippingAddress.country || null,
-            city: order.shippingAddress.city || null,
-        },
-        paymentInfo: {
-            id: order.paymentInfo.id || null,
-            status: order.paymentInfo.status || null,
-            type: order.paymentInfo.type || null,
-        },
-    };
-};
-
-// --- Create New Order (with Payment PIN verification) ---
+// --- Create New Order (with Payment PIN verification and frontend ML-DSA signature) ---
 router.post(
     "/create-order",
     isAuthenticated, // User must be authenticated to create an order
     catchAsyncErrors(async (req, res, next) => {
         try {
-            const { cart, shippingAddress, user, paymentInfo, paymentPin } = req.body; // Get paymentPin from request body
+            const { cart, shippingAddress, user, paymentInfo, paymentPin, mlDsaSignature, mlDsaPublicKey, mlDsaAlgorithm } = req.body;
 
             // --- PIN Verification Step ---
             // Fetch the user, explicitly selecting the paymentPin field
@@ -67,6 +43,54 @@ router.post(
             }
             // --- End PIN Verification ---
 
+            // --- ML-DSA Verification Step ---
+            if (!mlDsaSignature || !mlDsaPublicKey || !mlDsaAlgorithm) {
+                return next(new ErrorHandler("ML-DSA signature, public key, and algorithm are required.", 400));
+            }
+
+            // Convert base64 strings to Buffers if they're strings
+            let signatureBuffer = mlDsaSignature;
+            let publicKeyBuffer = mlDsaPublicKey;
+
+            if (typeof mlDsaSignature === 'string') {
+                try {
+                    // Try base64 decoding first (frontend sends base64)
+                    signatureBuffer = Buffer.from(mlDsaSignature, 'base64');
+                } catch (error) {
+                    // Fallback to hex if base64 fails
+                    signatureBuffer = Buffer.from(mlDsaSignature, 'hex');
+                }
+            }
+            if (typeof mlDsaPublicKey === 'string') {
+                try {
+                    // Try base64 decoding first (frontend sends base64)
+                    publicKeyBuffer = Buffer.from(mlDsaPublicKey, 'base64');
+                } catch (error) {
+                    // Fallback to hex if base64 fails
+                    publicKeyBuffer = Buffer.from(mlDsaPublicKey, 'hex');
+                }
+            }
+
+            // Prepare order data for verification (same as frontend signing)
+            const orderDataForVerification = {
+                cart: cart,
+                shippingAddress: shippingAddress,
+                user: user ? { _id: user._id } : null,
+                totalPrice: req.body.totalPrice,
+            };
+
+            // Verify the frontend-generated signature
+            const isSignatureValid = verifyOrderSignature(
+                orderDataForVerification,
+                signatureBuffer,
+                publicKeyBuffer
+            );
+
+            if (!isSignatureValid) {
+                return next(new ErrorHandler("Invalid ML-DSA signature. Order cannot be processed.", 400));
+            }
+            // --- End ML-DSA Verification ---
+
             // Group cart items by shopId (existing logic)
             const shopItemsMap = new Map();
             for (const item of cart) {
@@ -80,42 +104,35 @@ router.post(
             const orders = [];
 
             for (const [shopId, items] of shopItemsMap) {
-                const shopTotalPrice = items.reduce((acc, item) => acc + item.qty * item.price, 0);
+                // Calculate totalPrice for the current shop's items
+                // Cart items come from frontend with 'discountPrice' field, not 'price'
+                const shopTotalPrice = items.reduce((acc, item) => {
+                    const price = item.discountPrice || item.price || 0; // Handle both discountPrice and price
+                    const qty = item.qty || 1;
+                    return acc + (qty * price);
+                }, 0);
 
-                // Prepare data for ML-DSA signature
-                const orderDataForSignature = prepareOrderDataForSignature({
-                    user: { _id: user._id ? user._id.toString() : user.toString() },
-                    cart: items,
-                    totalPrice: shopTotalPrice,
-                    shippingAddress: shippingAddress,
-                    paymentInfo: paymentInfo,
-                });
-
-                // Generate ML-DSA signature
-                const signature = signOrderData(orderDataForSignature);
-                const publicKey = getPublicKey();
-                const algorithm = getAlgorithm();
-
-                if (!signature || !publicKey || !algorithm) {
-                    return next(new ErrorHandler("Failed to generate OQS signature or retrieve keys.", 500));
+                // Validate that we have a valid shopTotalPrice
+                if (isNaN(shopTotalPrice) || shopTotalPrice <= 0) {
+                    return next(new ErrorHandler(`Invalid total price calculation for shop ${shopId}. Please check cart items.`, 400));
                 }
 
                 const order = await Order.create({
                     cart: items.map(item => ({
-                        productId: item.productId,
+                        productId: item._id || item.productId, // Handle both _id and productId
                         name: item.name,
                         qty: item.qty,
-                        price: item.price,
+                        price: item.discountPrice || item.price, // Handle both discountPrice and price
                         shopId: item.shopId
                     })),
                     shippingAddress,
                     user: { _id: user._id ? user._id.toString() : user.toString() },
                     totalPrice: shopTotalPrice,
                     paymentInfo,
-                    mlDsaPublicKey: publicKey,
-                    mlDsaSignature: signature,
-                    mlDsaAlgorithm: algorithm,
-                    isMlDsaVerified: true,
+                    mlDsaPublicKey: publicKeyBuffer,
+                    mlDsaSignature: signatureBuffer,
+                    mlDsaAlgorithm: mlDsaAlgorithm,
+                    isMlDsaVerified: true, // Mark as verified since we just verified it
                 });
                 orders.push(order);
             }
@@ -123,10 +140,10 @@ router.post(
             res.status(201).json({
                 success: true,
                 orders,
-                message: "Order created and payment PIN verified successfully!",
+                message: "Order created and ML-DSA signature verified successfully!",
             });
         } catch (error) {
-            console.error("Error creating order with PIN verification:", error);
+            console.error("Error creating order with ML-DSA verification:", error);
             return next(new ErrorHandler(error.message, 500));
         }
     })
@@ -153,6 +170,74 @@ router.get(
       methods: ["direct"] 
     });
   })
+);
+
+// Update seller balance when order is delivered
+router.put(
+    "/update-seller-balance/:orderId",
+    isAuthenticated,
+    isAdmin,
+    catchAsyncErrors(async (req, res, next) => {
+        try {
+            const { orderId } = req.params;
+            
+            const order = await Order.findById(orderId);
+            if (!order) {
+                return next(new ErrorHandler("Order not found", 404));
+            }
+
+            // Lấy thông tin totalPrice đã được giải mã tự động
+            const orderData = order.toJSON();
+            const orderAmount = orderData.totalPrice;
+
+            // Tìm tất cả shops liên quan đến order
+            const uniqueShopIds = [...new Set(order.cart.map(item => item.shopId))];
+
+            for (const shopId of uniqueShopIds) {
+                // Tính toán amount cho shop này
+                const shopItems = order.cart.filter(item => item.shopId === shopId);
+                const shopAmount = shopItems.reduce((total, item) => {
+                    return total + (item.price * item.qty);
+                }, 0);
+
+                // Cập nhật balance của shop
+                const shop = await Shop.findById(shopId);
+                if (shop) {
+                    // Giải mã balance hiện tại
+                    const currentBalance = decryptAmount(shop.availableBalance) || 0;
+                    const newBalance = currentBalance + shopAmount;
+
+                    // Cập nhật balance (sẽ được mã hóa tự động)
+                    shop.availableBalance = newBalance;
+
+                    // Thêm transaction record
+                    shop.transections.push({
+                        amount: shopAmount, // Sẽ được mã hóa tự động
+                        status: "Credit",
+                        createdAt: new Date(),
+                        orderId: orderId
+                    });
+
+                    await shop.save();
+                }
+            }
+
+            // Cập nhật order status
+            order.status = "Delivered";
+            order.deliveredAt = new Date();
+            await order.save();
+
+            res.status(200).json({
+                success: true,
+                message: "Seller balances updated successfully",
+                order: order.toJSON() // Tự động giải mã khi trả về
+            });
+
+        } catch (error) {
+            console.error("Error updating seller balance:", error);
+            return next(new ErrorHandler(error.message, 500));
+        }
+    })
 );
 
 module.exports = router;

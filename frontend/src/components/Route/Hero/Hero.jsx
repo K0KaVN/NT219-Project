@@ -6,7 +6,7 @@ import styles from "../../../styles/styles";
 const Hero = () => {
     return (
         <div
-            className={`relative min-h-[70vh] 800px:min-h-[80vh] w-full bg-no-repeat ${styles.noramlFlex}`}
+            className={`relative min-h-[60vh] 600px:min-h-[60vh] w-full bg-no-repeat ${styles.noramlFlex}`}
             style={{
                 backgroundImage:
                     "url(https://themes.rslahmed.dev/rafcart/assets/images/banner-2.jpg)",
@@ -16,7 +16,7 @@ const Hero = () => {
                 <h1
                     className={`text-[35px] leading-[1.2] 800px:text-[60px] text-[#3d3a3a] font-[600] capitalize`}
                 >
-                    Best Collection for <br /> home Decoration
+                    Wanna buy some <br /> goods?
                 </h1>
                 <p className="pt-5 text-[16px] font-[Poppins] font-[400] text-[#000000ba]">
                     Lorem ipsum dolor sit amet consectetur, adipisicing elit. Beatae,
@@ -31,9 +31,7 @@ const Hero = () => {
                         </span>
                     </div>
                 </Link>
-
             </div>
-
         </div>
     )
 }

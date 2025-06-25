@@ -54,6 +54,13 @@ const AllSellers = () => {
       minWidth: 130,
       flex: 0.7,
     },
+    {
+      field: "province",
+      headerName: "Province",
+      type: "text",
+      minWidth: 100,
+      flex: 0.5,
+    },
 
     {
       field: "joinedAt",
@@ -109,6 +116,7 @@ const AllSellers = () => {
         email: item?.email,
         joinedAt: item.createdAt.slice(0, 10),
         address: item.address,
+        province: item.province,
       });
     });
 

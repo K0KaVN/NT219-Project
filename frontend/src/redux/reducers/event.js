@@ -62,3 +62,5 @@ export const eventReducer = createReducer(initialState, {
     state.error = null;
   },
 });
+
+export default eventReducer;

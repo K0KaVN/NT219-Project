@@ -7,8 +7,9 @@ const Order = require("../model/order");
 const Shop = require("../model/shop");
 const Product = require("../model/product");
 const User = require("../model/user"); // Import User model to fetch user details for PIN verification
+const { findOrdersByPriceRange } = require('../utils/encryptedSearch');
 // Import OQS Signature utility functions
-const { signOrderData, verifyOrderSignature, getPublicKey, getAlgorithm } = require('../utils/oqsSignature');
+const { verifyOrderSignature } = require('../utils/oqsSignature');
 
 // --- Helper function to prepare order data for signing/verification consistently ---
 // This function is CRUCIAL for ML-DSA. The data used for signing MUST EXACTLY match
@@ -36,14 +37,11 @@ const prepareOrderDataForSignature = (order) => {
         totalPrice: order.totalPrice,
 
         // Shipping address: Include all fields that are critical for the order
-        // Assuming shippingAddress is an object and its structure is consistent
+        // Simplified address structure
         shippingAddress: {
-            address1: order.shippingAddress.address1 || null,
-            address2: order.shippingAddress.address2 || null,
-            zipCode: order.shippingAddress.zipCode || null,
+            address: order.shippingAddress.address || null,
+            province: order.shippingAddress.province || null,
             country: order.shippingAddress.country || null,
-            city: order.shippingAddress.city || null,
-            // Add any other specific fields from shippingAddress you want to include
         },
 
         // Payment info: Include critical payment-related fields for order integrity
@@ -63,7 +61,7 @@ router.post(
     "/create-order",
     catchAsyncErrors(async (req, res, next) => {
         try {
-            const { cart, shippingAddress, user, totalPrice, paymentInfo, paymentPin } = req.body; // Added paymentPin
+            const { cart, shippingAddress, user, totalPrice, paymentInfo, paymentPin, mlDsaSignature, mlDsaPublicKey, mlDsaAlgorithm } = req.body;
 
             // --- Payment PIN Verification Step ---
             // Fetch the user, explicitly selecting the paymentPin field
@@ -88,6 +86,69 @@ router.post(
             }
             // --- End Payment PIN Verification ---
 
+            // --- ML-DSA Verification Step ---
+            if (!mlDsaSignature || !mlDsaPublicKey || !mlDsaAlgorithm) {
+                return next(new ErrorHandler("ML-DSA signature, public key, and algorithm are required.", 400));
+            }
+
+            // Convert base64 strings to Buffers if they're strings
+            let signatureBuffer = mlDsaSignature;
+            let publicKeyBuffer = mlDsaPublicKey;
+
+            if (typeof mlDsaSignature === 'string') {
+                try {
+                    // Try base64 decoding first (frontend sends base64)
+                    signatureBuffer = Buffer.from(mlDsaSignature, 'base64');
+                } catch (error) {
+                    // Fallback to hex if base64 fails
+                    signatureBuffer = Buffer.from(mlDsaSignature, 'hex');
+                }
+            }
+            if (typeof mlDsaPublicKey === 'string') {
+                try {
+                    // Try base64 decoding first (frontend sends base64)
+                    publicKeyBuffer = Buffer.from(mlDsaPublicKey, 'base64');
+                } catch (error) {
+                    // Fallback to hex if base64 fails
+                    publicKeyBuffer = Buffer.from(mlDsaPublicKey, 'hex');
+                }
+            }
+
+            // Log buffer lengths for debugging
+            console.log('Original mlDsaSignature type:', typeof mlDsaSignature);
+            console.log('Original mlDsaPublicKey type:', typeof mlDsaPublicKey);
+            console.log('Original mlDsaSignature length:', mlDsaSignature ? mlDsaSignature.length : 'null/undefined');
+            console.log('Original mlDsaPublicKey length:', mlDsaPublicKey ? mlDsaPublicKey.length : 'null/undefined');
+            console.log('Signature buffer length:', signatureBuffer.length);
+            console.log('Public key buffer length:', publicKeyBuffer.length);
+            console.log('Expected algorithm:', mlDsaAlgorithm);
+
+            // Prepare order data for verification (same as frontend signing)
+            const orderDataForVerification = {
+                cart: cart,
+                shippingAddress: shippingAddress,
+                user: user ? { _id: user._id } : null,
+                totalPrice: totalPrice,
+            };
+
+            // Verify the frontend-generated signature
+            let isSignatureValid;
+            try {
+                isSignatureValid = verifyOrderSignature(
+                    orderDataForVerification,
+                    signatureBuffer,
+                    publicKeyBuffer
+                );
+            } catch (verificationError) {
+                console.error('Signature verification failed:', verificationError);
+                return next(new ErrorHandler(`Signature verification failed: ${verificationError.message}`, 400));
+            }
+
+            if (!isSignatureValid) {
+                return next(new ErrorHandler("Invalid ML-DSA signature. Order cannot be processed.", 400));
+            }
+            // --- End ML-DSA Verification ---
+
             // Group cart items by shopId
             const shopItemsMap = new Map();
             for (const item of cart) {
@@ -103,43 +164,34 @@ router.post(
             // Create an order for each shop
             for (const [shopId, items] of shopItemsMap) {
                 // Calculate totalPrice for the current shop's items
-                const shopTotalPrice = items.reduce((acc, item) => acc + item.qty * item.price, 0);
+                // Cart items come from frontend with 'discountPrice' field, not 'price'
+                const shopTotalPrice = items.reduce((acc, item) => {
+                    const price = item.discountPrice || item.price || 0; // Handle both discountPrice and price
+                    const qty = item.qty || 1;
+                    return acc + (qty * price);
+                }, 0);
 
-                // Prepare data for ML-DSA signature
-                // Ensure 'user' object for signature includes '_id' as a string to match schema and verification
-                const orderDataForSignature = prepareOrderDataForSignature({
-                    user: { _id: user._id ? user._id.toString() : user.toString() }, // Ensure user._id is a string here
-                    cart: items,
-                    totalPrice: shopTotalPrice,
-                    shippingAddress: shippingAddress,
-                    paymentInfo: paymentInfo,
-                });
-
-                // Generate ML-DSA signature using the prepared data
-                const signature = signOrderData(orderDataForSignature);
-                const publicKey = getPublicKey();
-                const algorithm = getAlgorithm();
-
-                if (!signature || !publicKey || !algorithm) {
-                    return next(new ErrorHandler("Failed to generate OQS signature or retrieve keys. OQS module might not be initialized correctly.", 500));
+                // Validate that we have a valid shopTotalPrice
+                if (isNaN(shopTotalPrice) || shopTotalPrice <= 0) {
+                    return next(new ErrorHandler(`Invalid total price calculation for shop ${shopId}. Please check cart items.`, 400));
                 }
 
                 const order = await Order.create({
                     cart: items.map(item => ({ // Ensure cart items match schema for `productId`
-                        productId: item.productId,
+                        productId: item._id || item.productId, // Handle both _id and productId
                         name: item.name,
                         qty: item.qty,
-                        price: item.price,
+                        price: item.discountPrice || item.price, // Handle both discountPrice and price
                         shopId: item.shopId
                     })),
                     shippingAddress,
                     user: { _id: user._id ? user._id.toString() : user.toString() }, // Store user._id as a string in schema
                     totalPrice: shopTotalPrice, // Use the calculated total price for this shop's order
                     paymentInfo,
-                    mlDsaPublicKey: publicKey, // Store the public key (Buffer)
-                    mlDsaSignature: signature, // Store the signature (Buffer)
-                    mlDsaAlgorithm: algorithm, // Store the algorithm name (e.g., "Dilithium3")
-                    isMlDsaVerified: true, // Mark as verified since it's signed by our server at creation
+                    mlDsaPublicKey: publicKeyBuffer, // Store the public key (Buffer)
+                    mlDsaSignature: signatureBuffer, // Store the signature (Buffer)
+                    mlDsaAlgorithm: mlDsaAlgorithm, // Store the algorithm name (e.g., "Dilithium3")
+                    isMlDsaVerified: true, // Mark as verified since we just verified it
                 });
                 orders.push(order);
             }
@@ -147,6 +199,7 @@ router.post(
             res.status(201).json({
                 success: true,
                 orders,
+                message: "Order created and ML-DSA signature verified successfully!",
             });
         } catch (error) {
             console.error("Error creating order:", error);
@@ -347,8 +400,8 @@ router.put(
                     order.paymentInfo.status = "Succeeded";
                 }
                 const serviceCharge = order.totalPrice * 0.1; // 10% service charge
-                // Assuming req.seller.id is available from the isSeller middleware
-                await updateSellerInfo(req.seller.id, order.totalPrice - serviceCharge);
+                // Use req.seller._id instead of req.seller.id
+                await updateSellerInfo(req.seller._id, order.totalPrice - serviceCharge);
             }
 
             await order.save({ validateBeforeSave: false });
@@ -509,6 +562,34 @@ router.get(
             });
         } catch (error) {
             console.error("Error getting all admin orders:", error);
+            return next(new ErrorHandler(error.message, 500));
+        }
+    })
+);
+
+// Search orders by price range (Admin only)
+router.get(
+    "/admin-search-orders-by-price/:minPrice/:maxPrice",
+    isAuthenticated,
+    isAdmin,
+    catchAsyncErrors(async (req, res, next) => {
+        try {
+            const minPrice = parseFloat(req.params.minPrice);
+            const maxPrice = parseFloat(req.params.maxPrice);
+
+            if (isNaN(minPrice) || isNaN(maxPrice)) {
+                return next(new ErrorHandler("Invalid price range", 400));
+            }
+
+            const orders = await findOrdersByPriceRange(minPrice, maxPrice);
+
+            res.status(200).json({
+                success: true,
+                orders,
+                count: orders.length
+            });
+        } catch (error) {
+            console.error("Error searching orders by price:", error);
             return next(new ErrorHandler(error.message, 500));
         }
     })

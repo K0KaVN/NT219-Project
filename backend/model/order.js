@@ -1,4 +1,5 @@
 ﻿const mongoose = require("mongoose");
+const { encryptPrice, encryptAddress, decryptOrderData } = require("../utils/encryption");
 
 const orderSchema = new mongoose.Schema({
   cart: {
@@ -14,7 +15,7 @@ const orderSchema = new mongoose.Schema({
     required: true,
   },
   totalPrice: {
-    type: Number,
+    type: String, // Đổi từ Number sang String để lưu dữ liệu đã mã hóa
     required: true,
   },
   status: {
@@ -61,5 +62,26 @@ const orderSchema = new mongoose.Schema({
         default: false, // Mặc định là false, sẽ được cập nhật sau khi ký/xác minh
     },
 });
+
+// Middleware để mã hóa dữ liệu trước khi lưu
+orderSchema.pre("save", async function (next) {
+    // Mã hóa totalPrice
+    if (this.isModified("totalPrice") && this.totalPrice) {
+        this.totalPrice = encryptPrice(this.totalPrice);
+    }
+    
+    // Mã hóa shippingAddress.address
+    if (this.isModified("shippingAddress") && this.shippingAddress && this.shippingAddress.address) {
+        this.shippingAddress.address = encryptAddress(this.shippingAddress.address);
+    }
+    
+    next();
+});
+
+// Method để giải mã order data khi trả về
+orderSchema.methods.toJSON = function() {
+    const order = this.toObject();
+    return decryptOrderData(order);
+};
 
 module.exports = mongoose.model("Order", orderSchema);

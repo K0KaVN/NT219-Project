@@ -34,7 +34,7 @@ const Wishlist = ({ setOpenWishlist }) => {
                 onClick={() => setOpenWishlist(false)}
               />
             </div>
-            <h5>Wish items is empot!</h5>
+            <h5>Wish items is empty!</h5>
           </div>
         ) : (
           <>
@@ -90,9 +90,13 @@ const CartSingle = ({ data, removeFromWishlistHandler, addToCartHandler }) => {
             onClick={() => removeFromWishlistHandler(data)}
           />
           <img
-            src={`${backend_url}${data?.images[0]}`}
+            src={`${backend_url}${data?.images && data.images[0] ? data.images[0] : ''}`}
             alt=""
             className="w-[130px] h-min ml-2 mr-2 rounded-[5px]"
+            onError={(e) => {
+              console.error('Wishlist image failed to load:', e.target.src);
+              e.target.style.display = 'none';
+            }}
           />
 
           <div className="pl-[15px]">

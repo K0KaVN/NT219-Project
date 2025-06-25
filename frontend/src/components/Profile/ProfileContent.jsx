@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { backend_url, server } from "../../server";
+import { backend_url, server, getImageUrl } from "../../server";
 import { useDispatch, useSelector } from 'react-redux';
 import {
     deleteUserAddress,
@@ -16,9 +16,9 @@ import { RxCross1 } from 'react-icons/rx'
 import { MdTrackChanges } from "react-icons/md";
 import { toast } from "react-toastify";
 import axios from 'axios';
-import { Country, State } from "country-state-city";
 import { getAllOrdersOfUser } from '../../redux/actions/order';
-import SecuritySettings from './SecuritySettings'; // Import your SecuritySettings component
+import SecuritySettings from './SecuritySettings';
+import { vietnameseProvinces } from '../../utils/vietnameseProvinces';
 
 const ProfileContent = ({ active }) => {
     const { user, error, successMessage } = useSelector((state) => state.user);
@@ -26,7 +26,6 @@ const ProfileContent = ({ active }) => {
     const [email, setEmail] = useState(user && user.email);
     const [phoneNumber, setPhoneNumber] = useState(user && user.phoneNumber);
     const [password, setPassword] = useState("");
-    const [avatar, setAvatar] = useState(null);
 
     const dispatch = useDispatch();
 
@@ -39,7 +38,7 @@ const ProfileContent = ({ active }) => {
             toast.success(successMessage);
             dispatch({ type: "clearMessages" });
         }
-    }, [error, successMessage]);
+    }, [error, successMessage, dispatch]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -49,7 +48,6 @@ const ProfileContent = ({ active }) => {
     // Image update
     const handleImage = async (e) => {
         const file = e.target.files[0];
-        setAvatar(file);
 
         const formData = new FormData();
         formData.append("image", e.target.files[0]);
@@ -78,9 +76,13 @@ const ProfileContent = ({ active }) => {
                     <>
                         <div className="flex justify-center w-full">
                             <div className='relative'>
-                                <img src={`${backend_url}${user?.avatar}`}
+                                <img src={getImageUrl(user?.avatar)}
                                     className="w-[150px] h-[150px] rounded-full object-cover border-[3px] border-[#3ad132]"
-                                    alt="profile img" />
+                                    alt="profile img"
+                                    onError={(e) => {
+                                        console.error('Avatar image failed to load:', e.target.src);
+                                        e.target.style.display = 'none';
+                                    }} />
 
                                 <div className="w-[30px] h-[30px] bg-[#E3E9EE] rounded-full flex items-center justify-center cursor-pointer absolute bottom-[5px] right-[5px]">
                                     <input type="file"
@@ -98,7 +100,7 @@ const ProfileContent = ({ active }) => {
                         <br />
 
                         <div className='w-full px-5'>
-                            <form onSubmit={handleSubmit} aria-required={true}>
+                            <form onSubmit={handleSubmit}>
                                 <div className='w-full 800px:flex block pb-3'>
 
                                     <div className=' w-[100%] 800px:w-[50%]'>
@@ -197,7 +199,7 @@ const ProfileContent = ({ active }) => {
                 </div>
             )}
 
-            {/* Payment PIN / Security Settings (New section, using active === 8) */}
+            {/* Payment PIN / Security Settings */}
             {active === 8 && (
                 <div>
                     <SecuritySettings />
@@ -211,13 +213,12 @@ const ProfileContent = ({ active }) => {
 // All orders component
 const AllOrders = () => {
     const { user } = useSelector((state) => state.user);
-
     const { orders } = useSelector((state) => state.order);
     const dispatch = useDispatch();
 
     useEffect(() => {
         dispatch(getAllOrdersOfUser(user._id));
-    }, [dispatch, user._id]); // Added dispatch and user._id to dependency array
+    }, [dispatch, user._id]);
 
     const columns = [
         { field: "id", headerName: "Order ID", minWidth: 150, flex: 0.7 },
@@ -273,7 +274,7 @@ const AllOrders = () => {
         orders.forEach((item) => {
             row.push({
                 id: item._id,
-                itemsQty: item.cart.length,
+                itemsQty: item.cart.reduce((acc, cartItem) => acc + cartItem.qty, 0),
                 total: "US$ " + item.totalPrice,
                 status: item.status,
             });
@@ -302,7 +303,7 @@ const AllRefundOrders = () => {
 
     useEffect(() => {
         dispatch(getAllOrdersOfUser(user._id));
-    }, [dispatch, user._id]); // Added dispatch and user._id to dependency array
+    }, [dispatch, user._id]);
 
     const eligibleOrders = orders && orders.filter((item) => item.status === "Processing refund");
 
@@ -360,7 +361,7 @@ const AllRefundOrders = () => {
         eligibleOrders.forEach((item) => {
             row.push({
                 id: item._id,
-                itemsQty: item.cart.length,
+                itemsQty: item.cart.reduce((acc, cartItem) => acc + cartItem.qty, 0),
                 total: "US$ " + item.totalPrice,
                 status: item.status,
             });
@@ -379,7 +380,6 @@ const AllRefundOrders = () => {
     );
 };
 
-
 // Track order component
 const TrackOrder = () => {
     const { user } = useSelector((state) => state.user);
@@ -388,7 +388,7 @@ const TrackOrder = () => {
 
     useEffect(() => {
         dispatch(getAllOrdersOfUser(user._id));
-    }, [dispatch, user._id]); // Added dispatch and user._id to dependency array
+    }, [dispatch, user._id]);
 
     const columns = [
         { field: "id", headerName: "Order ID", minWidth: 150, flex: 0.7 },
@@ -444,7 +444,7 @@ const TrackOrder = () => {
         orders.forEach((item) => {
             row.push({
                 id: item._id,
-                itemsQty: item.cart.length,
+                itemsQty: item.cart.reduce((acc, cartItem) => acc + cartItem.qty, 0),
                 total: "US$ " + item.totalPrice,
                 status: item.status,
             });
@@ -462,7 +462,6 @@ const TrackOrder = () => {
         </div>
     )
 }
-
 
 // Change Password component
 const ChangePassword = () => {
@@ -499,7 +498,6 @@ const ChangePassword = () => {
             </h1>
             <div className='w-full'>
                 <form
-                    aria-required
                     onSubmit={passwordChangeHandler}
                     className="flex flex-col items-center"
                 >
@@ -548,15 +546,13 @@ const ChangePassword = () => {
 // Address component
 const Address = () => {
     const [open, setOpen] = useState(false);
-    const [country, setCountry] = useState("");
-    const [city, setCity] = useState("");
-    const [zipCode, setZipCode] = useState();
-    const [address1, setAddress1] = useState("");
-    const [address2, setAddress2] = useState("");
+    const [province, setProvince] = useState("");
+    const [address, setAddress] = useState("");
     const [addressType, setAddressType] = useState("");
     const { user } = useSelector((state) => state.user);
     const dispatch = useDispatch();
 
+    // Vietnamese provinces list
     const addressTypeData = [
         { name: "Default" },
         { name: "Home" },
@@ -566,26 +562,20 @@ const Address = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (addressType === "" || country === "" || city === "") {
+        if (!province || !address || !addressType) {
             toast.error("Please fill all the fields!");
         } else {
-            // Use Redux dispatch for updating address
             dispatch(
                 updatUserAddress(
-                    country,
-                    city,
-                    address1,
-                    address2,
-                    zipCode,
+                    "VietNam", // Country is always VietNam
+                    province,
+                    address,
                     addressType
                 )
             );
             setOpen(false);
-            setCountry("");
-            setCity("");
-            setAddress1("");
-            setAddress2("");
-            setZipCode(null); // return type is int so default is null
+            setProvince("");
+            setAddress("");
             setAddressType("");
         }
     }
@@ -612,93 +602,51 @@ const Address = () => {
                                 Add New Address
                             </h1>
                             <div className='w-full'>
-                                <form aria-required onSubmit={handleSubmit} className="w-full">
+                                <form onSubmit={handleSubmit} className="w-full">
                                     <div className="w-full block p-4">
                                         <div className="w-full pb-2">
                                             <label className="block pb-2">Country</label>
-                                            <select
-                                                name=""
-                                                id=""
-                                                value={country}
-                                                onChange={(e) => setCountry(e.target.value)}
-                                                className="w-[95%] border h-[40px] rounded-[5px]"
-                                            >
-                                                <option value=""
-                                                    className='block border pb-2'
-                                                >
-                                                    Choose your country
-                                                </option>
-                                                {
-                                                    Country &&
-                                                    Country.getAllCountries().map((item) => (
-                                                        <option
-                                                            className="block pb-2"
-                                                            key={item.isoCode}
-                                                            value={item.isoCode}
-                                                        >
-                                                            {item.name}
-                                                        </option>
-                                                    ))}
-                                            </select>
+                                            <input
+                                                type="text"
+                                                value="VietNam"
+                                                className="w-[95%] border h-[40px] rounded-[5px] px-3 bg-gray-100"
+                                                readOnly
+                                            />
                                         </div>
 
-                                        {/* City */}
                                         <div className="w-full pb-2">
-                                            <label className="block pb-2">Choose your City</label>
+                                            <label className="block pb-2">Choose your Province</label>
                                             <select
                                                 name=""
                                                 id=""
-                                                value={city}
-                                                onChange={(e) => setCity(e.target.value)}
+                                                value={province}
+                                                onChange={(e) => setProvince(e.target.value)}
                                                 className="w-[95%] border h-[40px] rounded-[5px]"
                                             >
                                                 <option value="" className="block border pb-2">
-                                                    Choose your city
+                                                    Choose your province
                                                 </option>
-                                                {State &&
-                                                    State.getStatesOfCountry(country).map((item) => (
-                                                        <option
-                                                            className="block pb-2"
-                                                            key={item.isoCode}
-                                                            value={item.isoCode}
-                                                        >
-                                                            {item.name}
-                                                        </option>
-                                                    ))}
+                                                {vietnameseProvinces.map((provinceName) => (
+                                                    <option
+                                                        className="block pb-2"
+                                                        key={provinceName}
+                                                        value={provinceName}
+                                                    >
+                                                        {provinceName}
+                                                    </option>
+                                                ))}
                                             </select>
                                         </div>
 
-                                        {/* Address 1 */}
                                         <div className="w-full pb-2">
-                                            <label className="block pb-2">Address 1</label>
+                                            <label className="block pb-2">Address</label>
                                             <input
-                                                type="address"
+                                                type="text"
                                                 className={`${styles.input}`}
                                                 required
-                                                value={address1}
-                                                onChange={(e) => setAddress1(e.target.value)}
-                                            />
-                                        </div>
-                                        {/* Address 2 */}
-                                        <div className="w-full pb-2">
-                                            <label className="block pb-2">Address 2</label>
-                                            <input
-                                                type="address"
-                                                className={`${styles.input}`}
-                                                required
-                                                value={address2}
-                                                onChange={(e) => setAddress2(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className="w-full pb-2">
-                                            <label className="block pb-2">Zip Code</label>
-                                            <input
-                                                type="number"
-                                                className={`${styles.input}`}
-                                                required
-                                                value={zipCode}
-                                                onChange={(e) => setZipCode(e.target.value)}
+                                                value={address}
+                                                onChange={(e) => setAddress(e.target.value)}
+                                                placeholder="Enter your detailed address"
                                             />
                                         </div>
 
@@ -770,7 +718,12 @@ const Address = () => {
                         </div>
                         <div className="pl-8 flex items-center">
                             <h6 className="text-[12px] 800px:text-[unset]">
-                                {item.address1} {item.address2}
+                                {item.address}
+                            </h6>
+                        </div>
+                        <div className="pl-8 flex items-center">
+                            <h6 className="text-[12px] 800px:text-[unset]">
+                                {item.province}, {item.country}
                             </h6>
                         </div>
                         <div className="pl-8 flex items-center">

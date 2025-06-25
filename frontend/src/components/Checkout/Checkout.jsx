@@ -1,22 +1,19 @@
 import React, { useState } from "react";
 import styles from "../../styles/styles";
-import { Country, State } from "country-state-city";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useEffect } from "react";
 import axios from "axios";
 import { server } from "../../server";
 import { toast } from "react-toastify";
+import { vietnameseProvinces } from "../../utils/vietnameseProvinces";
 
 const Checkout = () => {
     const { user } = useSelector((state) => state.user);
     const { cart } = useSelector((state) => state.cart);
-    const [country, setCountry] = useState("");
-    const [city, setCity] = useState("");
+    const [province, setProvince] = useState("");
     const [userInfo, setUserInfo] = useState(false); // State to toggle saved address display
-    const [address1, setAddress1] = useState("");
-    const [address2, setAddress2] = useState("");
-    const [zipCode, setZipCode] = useState(null);
+    const [address, setAddress] = useState("");
     const [couponCode, setCouponCode] = useState("");
     const [couponCodeData, setCouponCodeData] = useState(null);
     const [discountPrice, setDiscountPrice] = useState(null);
@@ -27,20 +24,18 @@ const Checkout = () => {
     }, []);
 
     const paymentSubmit = () => {
-        if (address1 === "" || address2 === "" || zipCode === null || country === "" || city === "") {
+        if (address === "" || province === "") {
             toast.error("Please choose your delivery address!")
         } else {
             const shippingAddress = {
-                address1,
-                address2,
-                zipCode,
-                country,
-                city,
+                address: address,
+                province: province,
+                country: "VietNam",
             };
 
             const orderData = {
                 cart,
-                totalPrice,
+                totalPrice: parseFloat(totalPrice), // Ensure totalPrice is a number
                 subTotalPrice,
                 shipping,
                 discountPrice,
@@ -99,7 +94,15 @@ const Checkout = () => {
 
     const discountPercentenge = couponCodeData ? discountPrice : 0; // Ensure it's a number for calculations
 
-    const totalPrice = (subTotalPrice + shipping - discountPercentenge).toFixed(2); // Final total price
+    // Helper function to safely calculate total price
+    const calculateTotalPrice = () => {
+        const sub = Number(subTotalPrice) || 0;
+        const ship = Number(shipping) || 0;
+        const discount = Number(discountPercentenge) || 0;
+        return (sub + ship - discount).toFixed(2);
+    };
+
+    const totalPrice = calculateTotalPrice(); // Final total price
 
     // console.log(discountPercentenge); // Removed console.log
 
@@ -109,18 +112,13 @@ const Checkout = () => {
                 <div className="w-full 800px:w-[65%]">
                     <ShippingInfo
                         user={user}
-                        country={country}
-                        setCountry={setCountry}
-                        city={city}
-                        setCity={setCity}
+                        province={province}
+                        setProvince={setProvince}
                         userInfo={userInfo}
                         setUserInfo={setUserInfo}
-                        address1={address1}
-                        setAddress1={setAddress1}
-                        address2={address2}
-                        setAddress2={setAddress2}
-                        zipCode={zipCode}
-                        setZipCode={setZipCode}
+                        address={address}
+                        setAddress={setAddress}
+                        vietnameseProvinces={vietnameseProvinces}
                     />
                 </div>
                 <div className="w-full 800px:w-[35%] 800px:mt-0 mt-8">
@@ -147,18 +145,13 @@ const Checkout = () => {
 
 const ShippingInfo = ({
     user,
-    country,
-    setCountry,
-    city,
-    setCity,
+    province,
+    setProvince,
     userInfo,
     setUserInfo,
-    address1,
-    setAddress1,
-    address2,
-    setAddress2,
-    zipCode,
-    setZipCode,
+    address,
+    setAddress,
+    vietnameseProvinces,
 }) => {
     return (
         <div className="w-full 800px:w-[95%] bg-white rounded-md p-5 pb-8">
@@ -200,75 +193,43 @@ const ShippingInfo = ({
                         />
                     </div>
                     <div className="w-[50%]">
-                        <label className="block pb-2">Zip Code</label>
-                        <input
-                            type="number"
-                            value={zipCode || ""} // Handle null zipCode for input display
-                            onChange={(e) => setZipCode(e.target.value)}
-                            required
-                            className={`${styles.input}`}
-                        />
-                    </div>
-                </div>
-
-                <div className="w-full flex pb-3">
-                    <div className="w-[50%]">
                         <label className="block pb-2">Country</label>
-                        <select
-                            className="w-[95%] border h-[40px] rounded-[5px]"
-                            value={country}
-                            onChange={(e) => setCountry(e.target.value)}
-                        >
-                            <option className="block pb-2" value="">
-                                Choose your country
-                            </option>
-                            {Country &&
-                                Country.getAllCountries().map((item) => (
-                                    <option key={item.isoCode} value={item.isoCode}>
-                                        {item.name}
-                                    </option>
-                                ))}
-                        </select>
-                    </div>
-                    <div className="w-[50%]">
-                        <label className="block pb-2">City</label>
-                        <select
-                            className="w-[95%] border h-[40px] rounded-[5px]"
-                            value={city}
-                            onChange={(e) => setCity(e.target.value)}
-                        >
-                            <option className="block pb-2" value="">
-                                Choose your City
-                            </option>
-                            {State &&
-                                State.getStatesOfCountry(country).map((item) => (
-                                    <option key={item.isoCode} value={item.name}> {/* Changed value to item.name for city */}
-                                        {item.name}
-                                    </option>
-                                ))}
-                        </select>
+                        <input
+                            type="text"
+                            value="VietNam"
+                            className={`${styles.input} bg-gray-100`}
+                            readOnly
+                        />
                     </div>
                 </div>
 
                 <div className="w-full flex pb-3">
                     <div className="w-[50%]">
-                        <label className="block pb-2">Address1</label>
-                        <input
-                            type="address"
-                            required
-                            value={address1}
-                            onChange={(e) => setAddress1(e.target.value)}
-                            className={`${styles.input} !w-[95%]`}
-                        />
+                        <label className="block pb-2">Province</label>
+                        <select
+                            className="w-[95%] border h-[40px] rounded-[5px]"
+                            value={province}
+                            onChange={(e) => setProvince(e.target.value)}
+                        >
+                            <option className="block pb-2" value="">
+                                Choose your province
+                            </option>
+                            {vietnameseProvinces.map((provinceName) => (
+                                <option key={provinceName} value={provinceName}>
+                                    {provinceName}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                     <div className="w-[50%]">
-                        <label className="block pb-2">Address2</label>
+                        <label className="block pb-2">Address</label>
                         <input
-                            type="address"
-                            value={address2}
-                            onChange={(e) => setAddress2(e.target.value)}
+                            type="text"
                             required
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
                             className={`${styles.input}`}
+                            placeholder="Enter your detailed address"
                         />
                     </div>
                 </div>
@@ -279,7 +240,7 @@ const ShippingInfo = ({
                 className="text-[18px] cursor-pointer inline-block"
                 onClick={() => setUserInfo(!userInfo)}
             >
-                Choose From saved address
+                Choose from saved address
             </h5>
             {userInfo && (
                 <div>
@@ -291,13 +252,10 @@ const ShippingInfo = ({
                                     className="mr-3"
                                     value={item.addressType}
                                     // Set all address fields when a saved address is selected
-                                    onClick={() =>
-                                        setAddress1(item.address1) ||
-                                        setAddress2(item.address2) ||
-                                        setZipCode(item.zipCode) ||
-                                        setCountry(item.country) ||
-                                        setCity(item.city)
-                                    }
+                                    onClick={() => {
+                                        setAddress(item.address || "");
+                                        setProvince(item.province || "");
+                                    }}
                                 />
                                 <h2>{item.addressType}</h2>
                             </div>
@@ -317,22 +275,34 @@ const CartData = ({
     setCouponCode,
     discountPercentenge,
 }) => {
+    // Helper function to safely format price
+    const formatPrice = (value) => {
+        if (value === null || value === undefined || value === '' || isNaN(Number(value))) {
+            return '0.00';
+        }
+        const numericValue = Number(value);
+        if (!isFinite(numericValue)) {
+            return '0.00';
+        }
+        return numericValue.toFixed(2);
+    };
+
     return (
         <div className="w-full bg-[#fff] rounded-md p-5 pb-8">
             <div className="flex justify-between">
                 <h3 className="text-[16px] font-[400] text-[#000000a4]">Subtotal:</h3>
-                <h5 className="text-[18px] font-[600]">${subTotalPrice.toFixed(2)}</h5> {/* Ensure price is formatted */}
+                <h5 className="text-[18px] font-[600]">${formatPrice(subTotalPrice)}</h5>
             </div>
             <br />
             <div className="flex justify-between">
                 <h3 className="text-[16px] font-[400] text-[#000000a4]">Shipping:</h3>
-                <h5 className="text-[18px] font-[600]">${shipping.toFixed(2)}</h5>
+                <h5 className="text-[18px] font-[600]">${formatPrice(shipping)}</h5>
             </div>
             <br />
             <div className="flex justify-between border-b pb-3">
                 <h3 className="text-[16px] font-[400] text-[#000000a4]">Discount:</h3>
                 <h5 className="text-[18px] font-[600]">
-                    - {discountPercentenge ? "$" + discountPercentenge.toFixed(2) : "$0.00"} {/* Format discount */}
+                    - ${formatPrice(discountPercentenge || 0)}
                 </h5>
             </div>
             <h5 className="text-[18px] font-[600] text-end pt-3">${totalPrice}</h5>

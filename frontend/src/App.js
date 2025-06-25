@@ -10,7 +10,6 @@ import {
   HomePage,
   ProductsPage,
   BestSellingPage,
-  EventsPage,
   FAQPage,
   CheckoutPage,
   PaymentPage,
@@ -22,14 +21,11 @@ import {
   ShopLoginPage,
   OrderDetailsPage,
   TrackOrderPage,
-  UserInbox,
 } from "./routes/Routes";
 import {
   ShopDashboardPage,
   ShopCreateProduct,
   ShopAllProducts,
-  ShopCreateEvents,
-  ShopAllEvents,
   ShopAllCoupouns,
   ShopPreviewPage,
   ShopAllOrders,
@@ -37,7 +33,6 @@ import {
   ShopAllRefunds,
   ShopSettingsPage,
   ShopWithDrawMoneyPage,
-  ShopInboxPage,
 } from "./routes/ShopRoutes";
 
 import {
@@ -46,7 +41,6 @@ import {
   AdminDashboardSellers,
   AdminDashboardOrders,
   AdminDashboardProducts,
-  AdminDashboardEvents,
   AdminDashboardWithdraw,
 } from "./routes/AdminRoutes";
 
@@ -59,30 +53,17 @@ import ProtectedAdminRoute from "./routes/ProtectedAdminRoute";
 import SellerProtectedRoute from "./routes/SellerProtectedRoute";
 import { ShopHomePage } from "./ShopRoutes";
 import { getAllProducts } from "./redux/actions/product";
-import { getAllEvents } from "./redux/actions/event";
 
 const App = () => {
   useEffect(() => {
     Store.dispatch(loadUser());
     Store.dispatch(loadSeller());
     Store.dispatch(getAllProducts());
-    Store.dispatch(getAllEvents());
   }, []);
 
   return (
     <AuthProvider>
     <BrowserRouter>
-      <Routes>
-        <Route
-          path="/payment"
-          element={
-            <ProtectedRoute>
-              <PaymentPage />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -98,13 +79,20 @@ const App = () => {
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/product/:id" element={<ProductDetailsPage />} />
         <Route path="/best-selling" element={<BestSellingPage />} />
-        <Route path="/events" element={<EventsPage />} />
         <Route path="/faq" element={<FAQPage />} />
         <Route
           path="/checkout"
           element={
             <ProtectedRoute>
               <CheckoutPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment"
+          element={
+            <ProtectedRoute>
+              <PaymentPage />
             </ProtectedRoute>
           }
         />
@@ -115,15 +103,6 @@ const App = () => {
           element={
             <ProtectedRoute>
               <ProfilePage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/inbox"
-          element={
-            <ProtectedRoute>
-              <UserInbox />
             </ProtectedRoute>
           }
         />
@@ -231,31 +210,6 @@ const App = () => {
         />
 
         <Route
-          path="/dashboard-messages"
-          element={
-            <SellerProtectedRoute>
-              <ShopInboxPage />
-            </SellerProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/dashboard-create-event"
-          element={
-            <SellerProtectedRoute>
-              <ShopCreateEvents />
-            </SellerProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard-events"
-          element={
-            <SellerProtectedRoute>
-              <ShopAllEvents />
-            </SellerProtectedRoute>
-          }
-        />
-        <Route
           path="/dashboard-coupouns"
           element={
             <SellerProtectedRoute>
@@ -302,14 +256,6 @@ const App = () => {
           element={
             <ProtectedAdminRoute>
               <AdminDashboardProducts />
-            </ProtectedAdminRoute>
-          }
-        />
-        <Route
-          path="/admin-events"
-          element={
-            <ProtectedAdminRoute>
-              <AdminDashboardEvents />
             </ProtectedAdminRoute>
           }
         />

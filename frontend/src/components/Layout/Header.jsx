@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import styles from "../../styles/styles";
-import { productData, categoriesData } from "../../static/data";
+import { categoriesData } from "../../static/data";
 import {
   AiOutlineHeart,
   AiOutlineSearch,
@@ -13,7 +13,7 @@ import { CgProfile } from "react-icons/cg";
 import DropDown from "./DropDown";
 import Navbar from "./Navbar";
 import { useSelector } from "react-redux";
-import { backend_url } from "../../server";
+import { backend_url, getImageUrl } from "../../server";
 import Cart from "../cart/Cart";
 import Wishlist from "../Wishlist/Wishlist";
 import { RxCross1 } from "react-icons/rx";
@@ -61,7 +61,7 @@ const Header = ({ activeHeading }) => {
           <div>
             <Link to="/">
               <img
-                src="https://shopo.quomodothemes.website/assets/images/logo.svg"
+                src="https://media.discordapp.net/attachments/897821919489970200/1381880151331180574/Thiet_ke_chua_co_ten__2_-removebg-preview.png?ex=68491fae&is=6847ce2e&hm=58ba949552e75ef852ff490f49c61097dbf2f5f49313336e11d1eb5d9ec07135&=&format=webp&quality=lossless"
                 alt=""
               />
             </Link>
@@ -85,15 +85,17 @@ const Header = ({ activeHeading }) => {
                 <div className="absolute min-h-[30vh] bg-slate-50 shadow-sm-2 z-[9] p-4">
                   {searchData &&
                     searchData.map((i, index) => {
-                      const d = i.name;
-
                       return (
                         <Link to={`/product/${i._id}`}>
                           <div className="w-full flex items-start-py-3">
                             <img
-                              src={`${backend_url}${i.images[0]}`}
+                              src={getImageUrl(i.images && i.images[0] ? i.images[0] : '')}
                               alt="img"
                               className="w-[40px] h-[40px] mr-[10px]"
+                              onError={(e) => {
+                                console.error('Search result image failed to load:', e.target.src);
+                                e.target.style.display = 'none';
+                              }}
                             />
                             <h1>{i.name}</h1>
                           </div>
@@ -122,7 +124,7 @@ const Header = ({ activeHeading }) => {
       {/*  2nd part of header start */}
       <div
         className={`${
-          active == true ? "shadow-sm fixed top-0 left-0 z-10" : null
+          active === true ? "shadow-sm fixed top-0 left-0 z-10" : null
         } transition hidden 800px:flex items-center justify-between w-full bg-[#3321c8] h-[70px]`}
       >
         <div
@@ -190,9 +192,13 @@ const Header = ({ activeHeading }) => {
                 {isAuthenticated ? (
                   <Link to="/profile">
                     <img
-                      src={`${backend_url}${user.avatar}`}
+                      src={getImageUrl(user.avatar)}
                       className="w-[35px] h-[35px] rounded-full"
                       alt=""
+                      onError={(e) => {
+                        console.error('User avatar image failed to load:', e.target.src);
+                        e.target.style.display = 'none';
+                      }}
                     />
                   </Link>
                 ) : (
@@ -203,6 +209,7 @@ const Header = ({ activeHeading }) => {
               </div>
             </div>
             {/* Avatar end */}
+            
             {/* card  popup start */}
             {openCart ? <Cart setOpenCart={setOpenCart} /> : null}
             {/* card popup end */}
@@ -234,7 +241,7 @@ const Header = ({ activeHeading }) => {
           <div>
             <Link to="/">
               <img
-                src="https://shopo.quomodothemes.website/assets/images/logo.svg"
+                src="https://media.discordapp.net/attachments/897821919489970200/1381880151331180574/Thiet_ke_chua_co_ten__2_-removebg-preview.png?ex=68491fae&is=6847ce2e&hm=58ba949552e75ef852ff490f49c61097dbf2f5f49313336e11d1eb5d9ec07135&=&format=webp&quality=lossless"
                 alt=""
                 className="mt-3 cursor-pointer"
               />
@@ -335,7 +342,7 @@ const Header = ({ activeHeading }) => {
                 <div>
                   <Link to="/profile">
                     <img
-                      src={`${backend_url}${user.avatar}`}
+                      src={getImageUrl(user.avatar)}
                       alt="Profile img"
                       className="w-[60px] h-[60px] rounded-full border-[3px] border-[#0eae88]"
                     />

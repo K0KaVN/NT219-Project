@@ -1,11 +1,13 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { getAllProductsShop } from "../../redux/actions/product";
-import { backend_url, server } from "../../server";
+import { logoutSeller } from "../../redux/actions/user";
+import { backend_url, server, getImageUrl } from "../../server";
 import styles from "../../styles/styles";
 import Loader from "../Layout/Loader";
+import { toast } from "react-toastify";
 
 
 
@@ -16,7 +18,7 @@ const ShopInfo = ({ isOwner }) => {
 
     const { id } = useParams();
     const dispatch = useDispatch();
-
+    const navigate = useNavigate();
 
     useEffect(() => {
         dispatch(getAllProductsShop(id));
@@ -32,10 +34,14 @@ const ShopInfo = ({ isOwner }) => {
 
 
     const logoutHandler = async () => {
-        axios.get(`${server}/shop/logout`, {
-            withCredentials: true,
-        });
-        window.location.reload();
+        try {
+            await dispatch(logoutSeller());
+            toast.success("Logged out successfully!");
+            navigate("/shop-login");
+        } catch (error) {
+            toast.error("Logout failed. Please try again.");
+            console.log(error);
+        }
     };
 
 
@@ -59,9 +65,13 @@ const ShopInfo = ({ isOwner }) => {
                         <div className="w-full py-5">
                             <div className="w-full flex item-center justify-center">
                                 <img
-                                    src={`${backend_url}${data.avatar}`}
+                                    src={getImageUrl(data.avatar)}
                                     alt=""
                                     className="w-[150px] h-[150px] object-cover rounded-full"
+                                    onError={(e) => {
+                                        console.error('Shop avatar image failed to load:', e.target.src);
+                                        e.target.style.display = 'none';
+                                    }}
                                 />
                             </div>
                             <h3 className="text-center py-2 text-[20px]">{data.name}</h3>
@@ -72,6 +82,10 @@ const ShopInfo = ({ isOwner }) => {
                         <div className="p-3">
                             <h5 className="font-[600]">Address</h5>
                             <h4 className="text-[#000000a6]">{data.address}</h4>
+                        </div>
+                        <div className="p-3">
+                            <h5 className="font-[600]">Province</h5>
+                            <h4 className="text-[#000000a6]">{data.province}</h4>
                         </div>
                         <div className="p-3">
                             <h5 className="font-[600]">Phone Number</h5>

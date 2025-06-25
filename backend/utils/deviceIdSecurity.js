@@ -46,8 +46,23 @@ function signDeviceId(encryptedDeviceId) {
 }
 
 function verifyDeviceId(encryptedDeviceId, signature, publicKey) {
-  const key = ec.keyFromPublic(publicKey, 'hex');
-  return key.verify(encryptedDeviceId, signature);
+  try {
+    console.log('🔍 Signature Verification Debug:');
+    console.log('- encryptedDeviceId:', encryptedDeviceId);
+    console.log('- signature:', signature);
+    console.log('- publicKey:', publicKey);
+    
+    const key = ec.keyFromPublic(publicKey, 'hex');
+    console.log('- Key created successfully');
+    
+    const result = key.verify(encryptedDeviceId, signature);
+    console.log('- Verification result:', result);
+    
+    return result;
+  } catch (error) {
+    console.error('❌ Signature verification error:', error);
+    return false;
+  }
 }
 
 module.exports = {

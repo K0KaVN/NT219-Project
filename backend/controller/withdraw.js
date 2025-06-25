@@ -5,6 +5,7 @@ const express = require("express");
 const { isSeller, isAuthenticated, isAdmin } = require("../middleware/auth");
 const Withdraw = require("../model/withdraw");
 const sendMail = require("../utils/sendMail");
+const { decryptAmount, encryptAmount } = require("../utils/encryption");
 const router = express.Router();
 
 // create withdraw request --- only for seller
@@ -37,7 +38,12 @@ router.post(
 
       const shop = await Shop.findById(req.seller._id);
 
-      shop.availableBalance = shop.availableBalance - amount;
+      // Giải mã availableBalance hiện tại để tính toán
+      const currentBalance = decryptAmount(shop.availableBalance) || 0;
+      const newBalance = currentBalance - amount;
+
+      // Cập nhật balance mới (sẽ được mã hóa tự động bởi pre-save hook)
+      shop.availableBalance = newBalance;
 
       await shop.save();
 
@@ -91,9 +97,12 @@ router.put(
 
       const seller = await Shop.findById(sellerId);
 
+      // Giải mã amount từ withdraw để sử dụng trong email
+      const withdrawAmount = decryptAmount(withdraw.amount);
+
       const transection = {
         _id: withdraw._id,
-        amount: withdraw.amount,
+        amount: withdraw.amount, // Giữ nguyên dạng mã hóa trong transaction
         updatedAt: withdraw.updatedAt,
         status: withdraw.status,
       };
@@ -106,7 +115,7 @@ router.put(
         await sendMail({
           email: seller.email,
           subject: "Payment confirmation",
-          message: `Hello ${seller.name}, Your withdraw request of ${withdraw.amount}$ is on the way. Delivery time depends on your bank's rules it usually takes 3days to 7days.`,
+          message: `Hello ${seller.name}, Your withdraw request of ${withdrawAmount}$ is on the way. Delivery time depends on your bank's rules it usually takes 3days to 7days.`,
         });
       } catch (error) {
         return next(new ErrorHandler(error.message, 500));

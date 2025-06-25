@@ -1,5 +1,5 @@
 import React from "react";
-import { AiOutlineLogin, AiOutlineMessage } from "react-icons/ai";
+import { AiOutlineLogin } from "react-icons/ai";
 import { RiLockPasswordLine } from "react-icons/ri";
 import { HiOutlineReceiptRefund, HiOutlineShoppingBag } from "react-icons/hi";
 import { RxPerson } from "react-icons/rx";
@@ -10,26 +10,24 @@ import {
 } from "react-icons/md";
 import { TbAddressBook } from "react-icons/tb";
 import { FaRegCreditCard } from "react-icons/fa"; // Icon for Payment PIN
-import axios from "axios";
-import { server } from "../../server";
 import { toast } from "react-toastify";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { logoutUser } from "../../redux/actions/user";
 
 const ProfileSidebar = ({ active, setActive }) => {
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const { user } = useSelector((state) => state.user);
 
-    const logoutHandler = () => {
-        axios
-            .get(`${server}/user/logout`, { withCredentials: true })
-            .then((res) => {
-                toast.success(res.data.message);
-                window.location.reload(true);
-                navigate("/login");
-            })
-            .catch((error) => {
-                console.log(error.response.data.message);
-            });
+    const logoutHandler = async () => {
+        try {
+            await dispatch(logoutUser());
+            toast.success("Logged out successfully!");
+            navigate("/");
+        } catch (error) {
+            toast.error("Logout failed. Please try again.");
+            console.log(error);
+        }
     };
 
     return (
@@ -73,20 +71,6 @@ const ProfileSidebar = ({ active, setActive }) => {
                         } 800px:block hidden`}
                 >
                     Refunds
-                </span>
-            </div>
-
-            {/* Inbox Section */}
-            <div
-                className="flex items-center cursor-pointer w-full mb-8"
-                onClick={() => setActive(4) || navigate("/inbox")} // Navigate to inbox page
-            >
-                <AiOutlineMessage size={20} color={active === 4 ? "red" : ""} />
-                <span
-                    className={`pl-3 ${active === 4 ? "text-[red]" : ""
-                        } 800px:block hidden`}
-                >
-                    Inbox
                 </span>
             </div>
 

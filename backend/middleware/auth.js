@@ -8,7 +8,7 @@ const Shop = require("../model/shop");
 exports.isAuthenticated = catchAsyncErrors(async (req, res, next) => {
   const { token, encryptedDeviceId, signature } = req.cookies;
   if (!token) {
-    return next(new ErrorHandler("Please login to continue", 401));
+    return;
   }
   const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
 
@@ -27,9 +27,10 @@ exports.isAuthenticated = catchAsyncErrors(async (req, res, next) => {
     req.socket?.remoteAddress ||
     null;
 
-  // Kiểm tra deviceId, userAgent, IP có khớp với user.devices không
+  // Kiểm tra deviceId, userAgent có khớp với user.devices không
+  // Bỏ kiểm tra IP vì IP có thể thay đổi do proxy, load balancer, NAT
   const matchedDevice = user.devices?.find(
-    (d) => d.deviceId === deviceId && d.userAgent === userAgent && d.ip === ip
+    (d) => d.deviceId === deviceId && d.userAgent === userAgent
   );
   if (!matchedDevice) {
     return next(new ErrorHandler("Thiết bị hoặc môi trường không hợp lệ", 401));
